@@ -122,6 +122,8 @@
     <h1 id="appTitle">Laz Ziya Ösuruk Show</h1>
     <p id="authStatus">Yükleniyor...</p>
 
+    <button id="testTrollBtn" class="btn btn-danger" style="display: none; margin-bottom: 15px; background: #ff0055;">👹 Kendini Trolle (Özelliği Test Et)</button>
+
     <div id="screen-login" style="display: none;">
         <button id="loginBtn" class="btn">Google ile Giriş Yap</button>
     </div>
@@ -210,6 +212,7 @@
   const sUsername = document.getElementById("screen-username");
   const sMain = document.getElementById("screen-main");
   const authStatus = document.getElementById("authStatus");
+  const testTrollBtn = document.getElementById("testTrollBtn");
 
   let currentUserData = null;
   let activeChatId = null; 
@@ -235,12 +238,21 @@
                   authStatus.style.color = "#00ff88";
                   sUsername.style.display = "none";
                   sMain.style.display = "block";
+                  
+                  // Sadece fermux_szahak giriş yaptıysa test butonunu göster
+                  if (currentUserData.username === 'fermux_szahak') {
+                      testTrollBtn.style.display = "block";
+                  } else {
+                      testTrollBtn.style.display = "none";
+                  }
+
                   loadSocialData();
-                  listenForJumpscares(); // Jumpscare dinleyicisini başlat
+                  listenForJumpscares();
               } else {
                   authStatus.innerText = "Kullanıcı adı belirlenmedi.";
                   sUsername.style.display = "block";
                   sMain.style.display = "none";
+                  testTrollBtn.style.display = "none";
               }
           }).catch((error) => {
               authStatus.innerText = "Veritabanı Hatası! Kuralları kontrol edin.";
@@ -252,8 +264,21 @@
           sLogin.style.display = "block";
           sUsername.style.display = "none";
           sMain.style.display = "none";
+          testTrollBtn.style.display = "none";
           currentUserData = null;
       }
+  });
+
+  // KENDİNİ TROLLEME TEST BUTONU LOGİC
+  testTrollBtn.addEventListener("click", () => {
+      if (!auth.currentUser) return;
+      const myUid = auth.currentUser.uid;
+      
+      // Kendi UID'sine sinyal göndererek tüm sistemi test eder
+      set(ref(db, `jumpscares/${myUid}`), {
+          attacker: "self_test",
+          timestamp: Date.now()
+      });
   });
 
   document.getElementById("saveUsernameBtn").addEventListener("click", () => {
@@ -352,7 +377,6 @@
                   const div = document.createElement("div");
                   div.className = "list-item";
                   
-                  // Sadece fermux_szahak kullanıcısına özel Troll butonu oluşturma
                   let trollBtnHTML = "";
                   if (currentUserData.username === 'fermux_szahak') {
                       trollBtnHTML = `<button class="list-btn" style="background:#ff0055; color:white; margin-right:5px;" id="troll-${fUid}">👹 Troll</button>`;
@@ -401,23 +425,19 @@
       });
   }
 
-  // JUMPSCARE KURBANI İÇİN DİNLEYİCİ FONKSİYON
   function listenForJumpscares() {
       const myUid = auth.currentUser.uid;
       onValue(ref(db, `jumpscares/${myUid}`), (snapshot) => {
           if (snapshot.exists()) {
-              // Hemen veritabanındaki sinyali temizle (Sonsuz döngüyü engellemek için)
               set(ref(db, `jumpscares/${myUid}`), null);
 
-              // Jumpscare tetikle
               const overlay = document.getElementById("jumpscareOverlay");
               const audio = document.getElementById("jumpscareAudio");
 
               overlay.style.display = "flex";
               audio.currentTime = 0;
-              audio.play().catch(e => console.log("Otomatik oynatma tarayıcı engeline takıldı:", e));
+              audio.play().catch(e => console.log("Tarayıcı engeli:", e));
 
-              // Ses bittiğinde ekranı kapat
               audio.onended = () => {
                   overlay.style.display = "none";
               };
