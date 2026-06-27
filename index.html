@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laz Ziya Ösürük Show</title>
+    <style>
+        /* Genel Arka Plan ve Sayfa Düzeni */
+        body {
+            background: radial-gradient(circle, #1e1e2f, #0f0f1a);
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            overflow: hidden; /* Taşmayı engelle */
+        }
+
+        /* Sol Üst Köşedeki Logo (image_0.png'dan) */
+        .radyo-logo {
+            position: absolute;
+            top: 15px; /* Daha az üst boşluk */
+            left: 15px;
+            width: 80px; /* Biraz daha küçük logo */
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #ffcc00;
+            box-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
+            object-fit: cover;
+            z-index: 10; /* Kutu üstünde kalsın */
+        }
+
+        /* Radyo Çalar Kutusu (ESNEK DÜZEN) */
+        .player-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 30px; /* Daha az dolgu */
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            width: 90%; /* Daha dar kutu */
+            max-width: 320px; /* Mobil için sınır */
+            height: auto; /* Yüksekliği içeriğe bırak */
+            max-height: 80vh; /* Ekranın %80'ini aşmasın */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex; /* FLEXBOX DÜZENİ */
+            flex-direction: column; /* Dikey istifleme */
+            justify-content: space-between; /* Öğeleri dağıt */
+            align-items: center;
+        }
+
+        h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem; /* Daha küçük başlık */
+            color: #ffcc00;
+            letter-spacing: 1px;
+            flex-shrink: 0; /* Küçülmesin */
+        }
+
+        .playing-status {
+            font-size: 0.8rem; /* Daha küçük metin */
+            color: #a0a0b8;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            flex-shrink: 0; /* Küçülmesin */
+        }
+
+        .song-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            min-height: 40px; /* Şarkı adı için yer */
+            flex-grow: 1; /* Diğer metinler sığmazsa burayı kıs */
+            overflow: hidden; /* Şarkı adı sığmazsa kes */
+            text-overflow: ellipsis; /* ... ile bit */
+            white-space: nowrap; /* Tek satırda tut */
+        }
+
+        /* Butonlar (DİKEY HİZALAMA) */
+        .controls {
+            display: flex;
+            flex-direction: row; /* Yan yana */
+            justify-content: center; /* Merkeze hizala */
+            width: 100%;
+            margin-top: auto; /* Alta yasla */
+            padding-top: 10px;
+        }
+
+        .controls button {
+            background: #ffcc00;
+            color: #121212;
+            border: none;
+            padding: 12px 18px; /* Daha az dolgu */
+            margin: 0 5px;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent; /* Mobil tıklama gölgesini kaldırır */
+            white-space: nowrap; /* Buton metnini sığdır */
+        }
+
+        .controls button:hover {
+            background: #ffe066;
+            transform: scale(1.05);
+        }
+
+        #play-btn {
+            padding: 14px 24px; /* Daha az dolgu */
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <img src="logo.png" alt="Radyo Logo" class="radyo-logo">
+
+    <div class="player-container">
+        <h2>RADYO SHOW</h2>
+        <div class="playing-status">Şu An Çalıyor</div>
+        <div class="song-title" id="track-name">Şarkı Yükleniyor...</div>
+        
+        <audio id="audio-player"></audio>
+
+        <div class="controls">
+            <button onclick="prevTrack()">◀ Geri</button>
+            <button onclick="togglePlay()" id="play-btn">Oynat ▶</button>
+            <button onclick="nextTrack()">İleri ▶</button>
+        </div>
+    </div>
+
+    <script>
+        // KENDİ ŞARKILARINI BURAYA EKLE!
+        // Dosya isimleri klasördeki MP3'ler ile birebir aynı olmalı.
+        const playlist = [
+            { name: "İlk Harika Şarkım", url: "sarki1.mp3" },
+            { name: "Enerjik İkinci Parça", url: "sarki2.mp3" },
+            { name: "Kapanış Müziği", url: "sarki3.mp3" }
+        ];
+
+        let currentTrackIndex = 0;
+        const audio = document.getElementById('audio-player');
+        const trackName = document.getElementById('track-name');
+        const playBtn = document.getElementById('play-btn');
+
+        // ÇİFT TETİKLENMEYİ ENGELLEYEN ZAMAN DEĞİŞKENİ (Geliştirilmiş)
+        let lastClickTime = 0;
+
+        function loadTrack(index) {
+            audio.src = playlist[index].url;
+            trackName.textContent = playlist[index].name;
+        }
+
+        // Oynat / Durdur işlevi (Hata düzeltilmiş ve cooldown'lu hali)
+        function togglePlay() {
+            const now = Date.now();
+            if (now - lastClickTime < 300) return; // Çift tıklamayı engelle
+            lastClickTime = now;
+
+            if (audio.paused) {
+                audio.play().then(() => {
+                    playBtn.textContent = "Durdur ⏸";
+                }).catch(error => {
+                    console.log("Oynatma başlatılamadı:", error);
+                });
+            } else {
+                audio.pause();
+                playBtn.textContent = "Oynat ▶";
+            }
+        }
+
+        // Sonraki Şarkı
+        function nextTrack() {
+            const now = Date.now();
+            if (now - lastClickTime < 300) return;
+            lastClickTime = now;
+
+            currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+            loadTrack(currentTrackIndex);
+            audio.play().then(() => {
+                playBtn.textContent = "Durdur ⏸";
+            });
+        }
+
+        // Önceki Şarkı
+        function prevTrack() {
+            const now = Date.now();
+            if (now - lastClickTime < 300) return;
+            lastClickTime = now;
+
+            currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+            loadTrack(currentTrackIndex);
+            audio.play().then(() => {
+                playBtn.textContent = "Durdur ⏸";
+            });
+        }
+
+        // Şarkı bitince otomatik sonrakine geç
+        audio.addEventListener('ended', nextTrack);
+
+        // İlk açılışta ilk şarkıyı hazırla
+        loadTrack(currentTrackIndex);
+    </script>
+</body>
+</html>
