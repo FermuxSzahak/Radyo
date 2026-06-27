@@ -47,7 +47,6 @@
         h1 { font-size: 22px; color: var(--primary); margin: 5px 0; }
         p { color: var(--text-secondary); font-size: 14px; }
         
-        /* Butonlar ve Inputlar */
         .btn {
             background-color: var(--accent);
             color: white; border: none; padding: 10px 20px;
@@ -63,7 +62,6 @@
             margin-top: 8px; box-sizing: border-box;
         }
 
-        /* Sekme Menüsü (Tabs) */
         .tabs {
             display: flex; justify-content: space-around;
             margin-top: 20px; border-bottom: 2px solid #333;
@@ -76,7 +74,6 @@
         .tab-content { display: none; text-align: left; margin-top: 15px; }
         .tab-content.active { display: block; }
 
-        /* Liste Yapıları */
         .list-item {
             background: #252525; padding: 10px; border-radius: 8px;
             margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
@@ -85,13 +82,12 @@
             padding: 5px 10px; border-radius: 5px; border: none; cursor: pointer; font-size: 12px;
         }
 
-        /* Chat Penceresi */
         .chat-box {
             background: #151515; height: 200px; border-radius: 8px;
             padding: 10px; overflow-y: auto; display: flex; flex-direction: column;
             margin-bottom: 10px; border: 1px solid #333;
         }
-        .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; margin-bottom: 5px; font-size: 13px; }
+        .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; margin-bottom: 5px; font-size: 13px; word-break: break-word; }
         .msg.sent { background: var(--primary); align-self: flex-end; color: black; }
         .msg.received { background: #333; align-self: flex-start; }
         audio { width: 100%; margin-top: 10px; }
@@ -148,7 +144,14 @@
             <h4>Arkadaşlarım</h4>
             <div id="friendsList" style="margin-bottom: 15px;"></div>
 
-            <div id="chatArea" style="display: none;">
+            <h4>Gruplar</h4>
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <input type="text" id="groupNameInput" class="input-field" style="margin:0;" placeholder="Yeni grup adı yaz...">
+                <button id="createGroupBtn" class="btn" style="margin:0; width: auto;">Grup Kur</button>
+            </div>
+            <div id="groupsList" style="margin-bottom: 15px;"></div>
+
+            <div id="chatArea" style="display: none; border-top: 2px dashed #444; padding-top: 15px;">
                 <h4 id="activeChatPartner">Sohbet</h4>
                 <div class="chat-box" id="chatBox"></div>
                 <div style="display: flex; gap: 5px;">
@@ -165,11 +168,10 @@
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getDatabase, ref, set, get, child, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  // Tamamlanmış Firebase Yapılandırma Bilgilerin
   const firebaseConfig = {
     apiKey: "AIzaSyDfaYkfpb4CEEybshRcBh36qFyKgtMCIB4",
     authDomain: "radyoshow-d4af4.firebaseapp.com",
-    databaseURL: "https://radyoshow-d4af4-default-rtdb.europe-west1.firebasedatabase.app/",
+    databaseURL: "https://radyoshow-d4af4-default-rtdb.firebaseio.com",
     projectId: "radyoshow-d4af4",
     storageBucket: "radyoshow-d4af4.firebasestorage.app",
     messagingSenderId: "415134978742",
@@ -182,32 +184,28 @@
   const db = getDatabase(app);
   const provider = new GoogleAuthProvider();
 
-  // Ekranlar
   const sLogin = document.getElementById("screen-login");
   const sUsername = document.getElementById("screen-username");
   const sMain = document.getElementById("screen-main");
   const authStatus = document.getElementById("authStatus");
 
   let currentUserData = null;
-  let activeChatFriendUid = null;
+  let activeChatId = null; 
+  let activeChatType = null; // 'private' veya 'group'
 
-  // Google ile Giriş İşlemi
   document.getElementById("loginBtn").addEventListener("click", () => {
       signInWithPopup(auth, provider).catch(err => alert("Giriş hatası: " + err.message));
   });
 
-  // Çıkış İşlemi
   document.getElementById("logoutBtn").addEventListener("click", () => {
       signOut(auth).then(() => { document.getElementById("radyoPlayer").pause(); });
   });
 
-  // 1. OTURUM KONTROLÜ VE KULLANICI ADI SORGULAMA
   onAuthStateChanged(auth, (user) => {
       if (user) {
           authStatus.innerText = "Kullanıcı profili kontrol ediliyor...";
           sLogin.style.display = "none";
 
-          // Veritabanında bu UID'ye ait kullanıcı adı var mı?
           get(ref(db, `users/${user.uid}`)).then((snapshot) => {
               if (snapshot.exists() && snapshot.val().username) {
                   currentUserData = snapshot.val();
@@ -217,11 +215,13 @@
                   sMain.style.display = "block";
                   loadSocialData();
               } else {
-                  // Kullanıcı adı yok, kullanıcı adı seçme ekranını göster
                   authStatus.innerText = "Kullanıcı adı belirlenmedi.";
                   sUsername.style.display = "block";
                   sMain.style.display = "none";
               }
+          }).catch((error) => {
+              authStatus.innerText = "Veritabanı Hatası! Kuralları kontrol edin.";
+              authStatus.style.color = "#ff0055";
           });
       } else {
           authStatus.innerText = "Lütfen erişim için giriş yapın.";
@@ -233,7 +233,6 @@
       }
   });
 
-  // 2. BENZERSİZ KULLANICI ADI KAYDETME (Kullanılıyor mu tespiti)
   document.getElementById("saveUsernameBtn").addEventListener("click", () => {
       const inputName = document.getElementById("usernameInput").value.trim().toLowerCase();
       const errTxt = document.getElementById("usernameError");
@@ -241,12 +240,10 @@
       if(inputName.length < 3) { errTxt.innerText = "En az 3 karakter olmalı!"; return; }
       if(!/^[a-zA-Z0-9_]+$/.test(inputName)) { errTxt.innerText = "Sadece harf, rakam ve alt çizgi (_)!"; return; }
 
-      // Kullanıcı adı veritabanında taranıyor
       get(ref(db, `usernames/${inputName}`)).then((snapshot) => {
           if (snapshot.exists()) {
               errTxt.innerText = "Bu kullanıcı adı zaten alınmış! Başka dene.";
           } else {
-              // Boştaysa hem usernames'e hem de users altına kaydet
               const uid = auth.currentUser.uid;
               const updates = {};
               updates[`usernames/${inputName}`] = uid;
@@ -257,13 +254,12 @@
               };
               
               update(ref(db), updates).then(() => {
-                  location.reload(); // Sayfayı yenileyip ana ekrana geçmesini sağla
-              });
+                  location.reload();
+              }).catch(e => { errTxt.innerText = "Yazma hatası: " + e.message; });
           }
-      });
+      }).catch(e => { errTxt.innerText = "Sorgu hatası: " + e.message; });
   });
 
-  // 3. ARKADAŞ ARAMA VE İSTEK ATMA
   document.getElementById("sendRequestBtn").addEventListener("click", () => {
       const targetName = document.getElementById("searchUsernameInput").value.trim().toLowerCase();
       const status = document.getElementById("socialStatus");
@@ -275,23 +271,36 @@
       get(ref(db, `usernames/${targetName}`)).then((snapshot) => {
           if(snapshot.exists()) {
               const targetUid = snapshot.val();
-              // Hedef kişinin istek kutusuna bizim bilgimizi ekle
               set(ref(db, `requests/${targetUid}/${auth.currentUser.uid}`), currentUserData.username)
               .then(() => {
                   status.innerText = "İstek başarıyla gönderildi!";
                   document.getElementById("searchUsernameInput").value = "";
-              });
+              }).catch(e => status.innerText = "İstek gönderme hatası.");
           } else {
               status.innerText = "Böyle bir kullanıcı bulunamadı!";
           }
       });
   });
 
-  // 4. SOSYAL VERİLERİ ANLIK TAKİP ETME (İstekler ve Arkadaşlar)
+  // GRUP OLUŞTURMA BUTONU
+  document.getElementById("createGroupBtn").addEventListener("click", () => {
+      const gName = document.getElementById("groupNameInput").value.trim();
+      if(!gName) return;
+
+      const newGroupRef = push(ref(db, `groups`));
+      set(newGroupRef, {
+          name: gName,
+          createdBy: auth.currentUser.uid,
+          timestamp: Date.now()
+      }).then(() => {
+          document.getElementById("groupNameInput").value = "";
+      }).catch(e => alert("Grup kurulamadı: " + e.message));
+  });
+
   function loadSocialData() {
       const myUid = auth.currentUser.uid;
 
-      // Gelen İstekleri Dinle
+      // Arkadaşlık İstekleri Dinleyicisi
       onValue(ref(db, `requests/${myUid}`), (snapshot) => {
           const reqList = document.getElementById("incomingRequestsList");
           reqList.innerHTML = "";
@@ -303,22 +312,18 @@
                      <button class="list-btn" style="background:#00ff88; color:black;" id="acc-${senderUid}">Kabul Et</button>`;
                   reqList.appendChild(div);
 
-                  // Kabul Et Buton Aksiyonu
                   document.getElementById(`acc-${senderUid}`).addEventListener("click", () => {
                       const updates = {};
-                      // İki tarafı da birbirine arkadaş ekle
                       updates[`friends/${myUid}/${senderUid}`] = senderUsername;
                       updates[`friends/${senderUid}/${myUid}`] = currentUserData.username;
-                      // İsteği sil
                       updates[`requests/${myUid}/${senderUid}`] = null;
-
                       update(ref(db), updates);
                   });
               });
           } else { reqList.innerHTML = "<p>Gelen istek yok.</p>"; }
       });
 
-      // Arkadaşlarımı Dinle
+      // Arkadaşlarım Dinleyicisi
       onValue(ref(db, `friends/${myUid}`), (snapshot) => {
           const fList = document.getElementById("friendsList");
           fList.innerHTML = "";
@@ -326,29 +331,47 @@
               Object.entries(snapshot.val()).forEach(([fUid, fName]) => {
                   const div = document.createElement("div");
                   div.className = "list-item";
-                  div.innerHTML = `<span>@${fName}</span> <button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet Et</button>`;
+                  div.innerHTML = `<span>👤 @${fName}</span> <button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet Et</button>`;
                   fList.appendChild(div);
 
                   document.getElementById(`chat-with-${fUid}`).addEventListener("click", () => {
-                      openChat(fUid, fName);
+                      openPrivateChat(fUid, fName);
                   });
               });
           } else { fList.innerHTML = "<p>Henüz arkadaşın yok.</p>"; }
       });
+
+      // Grupları Dinleme
+      onValue(ref(db, `groups`), (snapshot) => {
+          const gList = document.getElementById("groupsList");
+          gList.innerHTML = "";
+          if(snapshot.exists()) {
+              Object.entries(snapshot.val()).forEach(([gId, gData]) => {
+                  const div = document.createElement("div");
+                  div.className = "list-item";
+                  div.innerHTML = `<span>👥 ${gData.name}</span> <button class="list-btn" style="background:#ffaa00; color:black;" id="join-group-${gId}">Gruba Gir</button>`;
+                  gList.appendChild(div);
+
+                  document.getElementById(`join-group-${gId}`).addEventListener("click", () => {
+                      openGroupChat(gId, gData.name);
+                  });
+              });
+          } else { gList.innerHTML = "<p>Henüz kurulmuş bir grup yok.</p>"; }
+      });
   }
 
-  // 5. CANLI SOHBET SİSTEMİ
-  function openChat(friendUid, friendName) {
-      activeChatFriendUid = friendUid;
+  // ÖZEL SOHBETİ AÇMA
+  function openPrivateChat(friendUid, friendName) {
+      activeChatId = friendUid;
+      activeChatType = 'private';
       document.getElementById("chatArea").style.display = "block";
-      document.getElementById("activeChatPartner").innerText = "@" + friendName + " ile Sohbet";
+      document.getElementById("activeChatPartner").innerText = "💬 @" + friendName + " ile Sohbet";
       
-      // İki kullanıcı arasında benzersiz ve sabit bir sohbet odası ID'si üretme
       const myUid = auth.currentUser.uid;
       const chatRoomId = myUid < friendUid ? `${myUid}_${friendUid}` : `${friendUid}_${myUid}`;
 
-      // Eski mesaj dinleyicisini temizlemek ve yenisini kurmak için
       onValue(ref(db, `chats/${chatRoomId}`), (snapshot) => {
+          if (activeChatId !== friendUid || activeChatType !== 'private') return;
           const box = document.getElementById("chatBox");
           box.innerHTML = "";
           if(snapshot.exists()) {
@@ -358,39 +381,75 @@
                   mDiv.innerText = m.text;
                   box.appendChild(mDiv);
               });
-              box.scrollTop = box.scrollHeight; // En aşağı kaydır
+              box.scrollTop = box.scrollHeight;
           }
       });
   }
 
-  // Mesaj Gönderme
+  // GRUP SOHBETİNİ AÇMA
+  function openGroupChat(groupId, groupName) {
+      activeChatId = groupId;
+      activeChatType = 'group';
+      document.getElementById("chatArea").style.display = "block";
+      document.getElementById("activeChatPartner").innerText = "👥 " + groupName + " Grubu";
+
+      const myUid = auth.currentUser.uid;
+
+      onValue(ref(db, `groupChats/${groupId}`), (snapshot) => {
+          if (activeChatId !== groupId || activeChatType !== 'group') return;
+          const box = document.getElementById("chatBox");
+          box.innerHTML = "";
+          if(snapshot.exists()) {
+              Object.values(snapshot.val()).forEach(m => {
+                  const mDiv = document.createElement("div");
+                  mDiv.className = `msg ${m.sender === myUid ? 'sent' : 'received'}`;
+                  if (m.sender === myUid) {
+                      mDiv.innerText = m.text;
+                  } else {
+                      mDiv.innerText = `@${m.senderName || 'Anonim'}: ${m.text}`;
+                  }
+                  box.appendChild(mDiv);
+              });
+              box.scrollTop = box.scrollHeight;
+          }
+      });
+  }
+
   document.getElementById("sendMessageBtn").addEventListener("click", sendMyMessage);
   document.getElementById("messageInput").addEventListener("keypress", (e) => { if(e.key === 'Enter') sendMyMessage(); });
 
   function sendMyMessage() {
       const msgInput = document.getElementById("messageInput");
       const txt = msgInput.value.trim();
-      if(!txt || !activeChatFriendUid) return;
+      if(!txt || !activeChatId) return;
 
       const myUid = auth.currentUser.uid;
-      const chatRoomId = myUid < activeChatFriendUid ? `${myUid}_${activeChatFriendUid}` : `${activeChatFriendUid}_${myUid}`;
 
-      const newMsgRef = push(ref(db, `chats/${chatRoomId}`));
-      set(newMsgRef, {
-          sender: myUid,
-          text: txt,
-          timestamp: Date.now()
-      }).then(() => { msgInput.value = ""; });
+      if (activeChatType === 'private') {
+          const chatRoomId = myUid < activeChatId ? `${myUid}_${activeChatId}` : `${activeChatId}_${myUid}`;
+          const newMsgRef = push(ref(db, `chats/${chatRoomId}`));
+          set(newMsgRef, {
+              sender: myUid,
+              text: txt,
+              timestamp: Date.now()
+          }).then(() => { msgInput.value = ""; });
+      } else if (activeChatType === 'group') {
+          const newMsgRef = push(ref(db, `groupChats/${activeChatId}`));
+          set(newMsgRef, {
+              sender: myUid,
+              senderName: currentUserData.username,
+              text: txt,
+              timestamp: Date.now()
+          }).then(() => { msgInput.value = ""; });
+      }
   }
 
-  // Sekme Değiştirme Fonksiyonu
   window.switchTab = function(tabId) {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       event.currentTarget.classList.add('active');
   };
-
 </script>
 </body>
 </html>
