@@ -3,207 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laz Ziya Ösürük Show</title>
+    <title>FermuxSzahak Radyo</title>
     <style>
-        /* Genel Arka Plan ve Sayfa Düzeni */
         body {
-            background: radial-gradient(circle, #1e1e2f, #0f0f1a);
+            background-color: #121212;
             color: #ffffff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            overflow: hidden; /* Taşmayı engelle */
+            padding: 20px;
         }
-
-        /* Sol Üst Köşedeki Logo (image_0.png'dan) */
-        .radyo-logo {
-            position: absolute;
-            top: 15px; /* Daha az üst boşluk */
-            left: 15px;
-            width: 80px; /* Biraz daha küçük logo */
-            height: 80px;
-            border-radius: 50%;
-            border: 3px solid #ffcc00;
-            box-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
-            object-fit: cover;
-            z-index: 10; /* Kutu üstünde kalsın */
-        }
-
-        /* Radyo Çalar Kutusu (ESNEK DÜZEN) */
-        .player-container {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            padding: 30px; /* Daha az dolgu */
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .container {
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             text-align: center;
-            width: 90%; /* Daha dar kutu */
-            max-width: 320px; /* Mobil için sınır */
-            height: auto; /* Yüksekliği içeriğe bırak */
-            max-height: 80vh; /* Ekranın %80'ini aşmasın */
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            display: flex; /* FLEXBOX DÜZENİ */
-            flex-direction: column; /* Dikey istifleme */
-            justify-content: space-between; /* Öğeleri dağıt */
-            align-items: center;
-        }
-
-        h2 {
-            margin: 0 0 10px 0;
-            font-size: 1.5rem; /* Daha küçük başlık */
-            color: #ffcc00;
-            letter-spacing: 1px;
-            flex-shrink: 0; /* Küçülmesin */
-        }
-
-        .playing-status {
-            font-size: 0.8rem; /* Daha küçük metin */
-            color: #a0a0b8;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            flex-shrink: 0; /* Küçülmesin */
-        }
-
-        .song-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-bottom: 20px;
-            min-height: 40px; /* Şarkı adı için yer */
-            flex-grow: 1; /* Diğer metinler sığmazsa burayı kıs */
-            overflow: hidden; /* Şarkı adı sığmazsa kes */
-            text-overflow: ellipsis; /* ... ile bit */
-            white-space: nowrap; /* Tek satırda tut */
-        }
-
-        /* Butonlar (DİKEY HİZALAMA) */
-        .controls {
-            display: flex;
-            flex-direction: row; /* Yan yana */
-            justify-content: center; /* Merkeze hizala */
+            max-width: 400px;
             width: 100%;
-            margin-top: auto; /* Alta yasla */
-            padding-top: 10px;
         }
-
-        .controls button {
-            background: #ffcc00;
-            color: #121212;
+        img {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 20px;
+            border: 3px solid #00adb5;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #00adb5;
+        }
+        p {
+            color: #eeeeee;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        audio {
+            width: 100%;
+            margin-top: 15px;
+            margin-bottom: 25px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #4285F4;
+            color: white;
             border: none;
-            padding: 12px 18px; /* Daha az dolgu */
-            margin: 0 5px;
-            border-radius: 50px;
+            padding: 12px 24px;
+            font-size: 16px;
             font-weight: bold;
+            border-radius: 25px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            -webkit-tap-highlight-color: transparent; /* Mobil tıklama gölgesini kaldırır */
-            white-space: nowrap; /* Buton metnini sığdır */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: background-color 0.3s;
+            width: 100%;
         }
-
-        .controls button:hover {
-            background: #ffe066;
-            transform: scale(1.05);
-        }
-
-        #play-btn {
-            padding: 14px 24px; /* Daha az dolgu */
-            font-size: 1rem;
+        .btn:hover {
+            background-color: #357ae8;
         }
     </style>
 </head>
 <body>
 
-    <img src="logo.png" alt="Radyo Logo" class="radyo-logo">
+<div class="container">
+    <img src="logo.png" alt="Radyo Logo">
+    
+    <h1>Müzik Çal, Eğlen!</h1>
+    <p id="authStatus">Lütfen radyo oynatıcısına erişmek için giriş yapın.</p>
 
-    <div class="player-container">
-        <h2>RADYO SHOW</h2>
-        <div class="playing-status">Şu An Çalıyor</div>
-        <div class="song-title" id="track-name">Şarkı Yükleniyor...</div>
-        
-        <audio id="audio-player"></audio>
+    <button id="loginBtn" class="btn">Google ile Giriş Yap</button>
 
-        <div class="controls">
-            <button onclick="prevTrack()">◀ Geri</button>
-            <button onclick="togglePlay()" id="play-btn">Oynat ▶</button>
-            <button onclick="nextTrack()">İleri ▶</button>
-        </div>
+    <div id="playerContainer" style="display: none;">
+        <audio id="radyoPlayer" controls>
+            <source src="sarki1.mp3" type="audio/mpeg">
+            Tarayıcınız ses öğesini desteklemiyor.
+        </audio>
     </div>
+</div>
 
-    <script>
-        // KENDİ ŞARKILARINI BURAYA EKLE!
-        // Dosya isimleri klasördeki MP3'ler ile birebir aynı olmalı.
-        const playlist = [
-            { name: "İlk Harika Şarkım", url: "sarki1.mp3" },
-            { name: "Enerjik İkinci Parça", url: "sarki2.mp3" },
-            { name: "Kapanış Müziği", url: "sarki3.mp3" }
-        ];
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-        let currentTrackIndex = 0;
-        const audio = document.getElementById('audio-player');
-        const trackName = document.getElementById('track-name');
-        const playBtn = document.getElementById('play-btn');
+  // Firebase Yapılandırma Bilgilerin
+  const firebaseConfig = {
+    apiKey: "AIzaSyDfaYkfpb4CEEybshRcBh36qFyKgtMCIB4", // ⚠️ EKRANDA "..." İLE BİTTİĞİ İÇİN BURAYA EKRANINDAKİ TAM KEY'İ YAZMALISIN!
+    authDomain: "radyoshow-d4af4.firebaseapp.com",
+    databaseURL: "https://radyoshow-d4af4-default-rtdb.firebaseio.com",
+    projectId: "radyoshow-d4af4",
+    storageBucket: "radyoshow-d4af4.firebasestorage.app",
+    messagingSenderId: "415134978742",
+    appId: "1:415134978742:web:55bb6629a499107d050c17", // ⚠️ EKRANDA "..." İLE BİTTİĞİ İÇİN BURAYA EKRANINDAKİ TAM APP ID'YI YAZMALISIN!
+    measurementId: "G-G7P932M03E"
+  };
 
-        // ÇİFT TETİKLENMEYİ ENGELLEYEN ZAMAN DEĞİŞKENİ (Geliştirilmiş)
-        let lastClickTime = 0;
+  // Firebase Başlatma
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
 
-        function loadTrack(index) {
-            audio.src = playlist[index].url;
-            trackName.textContent = playlist[index].name;
-        }
+  const loginBtn = document.getElementById("loginBtn");
+  const authStatus = document.getElementById("authStatus");
+  const playerContainer = document.getElementById("playerContainer");
+  const radyoPlayer = document.getElementById("radyoPlayer");
 
-        // Oynat / Durdur işlevi (Hata düzeltilmiş ve cooldown'lu hali)
-        function togglePlay() {
-            const now = Date.now();
-            if (now - lastClickTime < 300) return; // Çift tıklamayı engelle
-            lastClickTime = now;
+  // Giriş ve Çıkış Buton Aksiyonu
+  loginBtn.addEventListener("click", () => {
+    if (auth.currentUser) {
+        signOut(auth).then(() => {
+            console.log("Çıkış yapıldı.");
+        });
+    } else {
+        signInWithPopup(auth, provider)
+          .then((result) => {
+            console.log("Giriş Başarılı:", result.user.displayName);
+          })
+          .catch((error) => {
+            console.error("Giriş Hatası:", error);
+            alert("Giriş yapılırken hata oluştu: " + error.message);
+          });
+    }
+  });
 
-            if (audio.paused) {
-                audio.play().then(() => {
-                    playBtn.textContent = "Durdur ⏸";
-                }).catch(error => {
-                    console.log("Oynatma başlatılamadı:", error);
-                });
-            } else {
-                audio.pause();
-                playBtn.textContent = "Oynat ▶";
-            }
-        }
+  // Oturum Durumu Değişikliklerini İzleme
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      // Giriş yapılmışsa
+      authStatus.innerText = "Hoş geldin, " + user.displayName + "! Keyifli dinlemeler.";
+      authStatus.style.color = "#00ff88";
+      loginBtn.innerText = "Çıkış Yap";
+      loginBtn.style.backgroundColor = "#d32f2f";
+      playerContainer.style.display = "block"; 
+    } else {
+      // Çıkış yapılmışsa
+      authStatus.innerText = "Lütfen radyo oynatıcısına erişmek için giriş yapın.";
+      authStatus.style.color = "#eeeeee";
+      loginBtn.innerText = "Google ile Giriş Yap";
+      loginBtn.style.backgroundColor = "#4285F4";
+      playerContainer.style.display = "none"; 
+      radyoPlayer.pause(); 
+    }
+  });
+</script>
 
-        // Sonraki Şarkı
-        function nextTrack() {
-            const now = Date.now();
-            if (now - lastClickTime < 300) return;
-            lastClickTime = now;
-
-            currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
-            loadTrack(currentTrackIndex);
-            audio.play().then(() => {
-                playBtn.textContent = "Durdur ⏸";
-            });
-        }
-
-        // Önceki Şarkı
-        function prevTrack() {
-            const now = Date.now();
-            if (now - lastClickTime < 300) return;
-            lastClickTime = now;
-
-            currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
-            loadTrack(currentTrackIndex);
-            audio.play().then(() => {
-                playBtn.textContent = "Durdur ⏸";
-            });
-        }
-
-        // Şarkı bitince otomatik sonrakine geç
-        audio.addEventListener('ended', nextTrack);
-
-        // İlk açılışta ilk şarkıyı hazırla
-        loadTrack(currentTrackIndex);
-    </script>
 </body>
 </html>
