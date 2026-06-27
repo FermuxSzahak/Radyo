@@ -91,9 +91,31 @@
         .msg.sent { background: var(--primary); align-self: flex-end; color: black; }
         .msg.received { background: #333; align-self: flex-start; }
         audio { width: 100%; margin-top: 10px; }
+
+        /* JUMPSCARE OVERLAY STİLLERİ */
+        .jumpscare-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: black;
+            z-index: 99999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .jumpscare-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
     </style>
 </head>
 <body>
+
+<div id="jumpscareOverlay" class="jumpscare-overlay">
+    <img src="korku.jpg" alt="BOO!">
+    <audio id="jumpscareAudio" src="korku.mp3"></audio>
+</div>
 
 <div class="container">
     <img src="logo.png" alt="Radyo Logo" class="logo">
@@ -191,7 +213,7 @@
 
   let currentUserData = null;
   let activeChatId = null; 
-  let activeChatType = null; // 'private' veya 'group'
+  let activeChatType = null;
 
   document.getElementById("loginBtn").addEventListener("click", () => {
       signInWithPopup(auth, provider).catch(err => alert("Giriş hatası: " + err.message));
@@ -214,6 +236,7 @@
                   sUsername.style.display = "none";
                   sMain.style.display = "block";
                   loadSocialData();
+                  listenForJumpscares(); // Jumpscare dinleyicisini başlat
               } else {
                   authStatus.innerText = "Kullanıcı adı belirlenmedi.";
                   sUsername.style.display = "block";
@@ -282,7 +305,6 @@
       });
   });
 
-  // GRUP OLUŞTURMA BUTONU
   document.getElementById("createGroupBtn").addEventListener("click", () => {
       const gName = document.getElementById("groupNameInput").value.trim();
       if(!gName) return;
@@ -300,7 +322,6 @@
   function loadSocialData() {
       const myUid = auth.currentUser.uid;
 
-      // Arkadaşlık İstekleri Dinleyicisi
       onValue(ref(db, `requests/${myUid}`), (snapshot) => {
           const reqList = document.getElementById("incomingRequestsList");
           reqList.innerHTML = "";
@@ -323,7 +344,6 @@
           } else { reqList.innerHTML = "<p>Gelen istek yok.</p>"; }
       });
 
-      // Arkadaşlarım Dinleyicisi
       onValue(ref(db, `friends/${myUid}`), (snapshot) => {
           const fList = document.getElementById("friendsList");
           fList.innerHTML = "";
@@ -331,8 +351,30 @@
               Object.entries(snapshot.val()).forEach(([fUid, fName]) => {
                   const div = document.createElement("div");
                   div.className = "list-item";
-                  div.innerHTML = `<span>👤 @${fName}</span> <button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet Et</button>`;
+                  
+                  // Sadece fermux_szahak kullanıcısına özel Troll butonu oluşturma
+                  let trollBtnHTML = "";
+                  if (currentUserData.username === 'fermux_szahak') {
+                      trollBtnHTML = `<button class="list-btn" style="background:#ff0055; color:white; margin-right:5px;" id="troll-${fUid}">👹 Troll</button>`;
+                  }
+
+                  div.innerHTML = `<span>👤 @${fName}</span> 
+                     <div>
+                        ${trollBtnHTML}
+                        <button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet Et</button>
+                     </div>`;
                   fList.appendChild(div);
+
+                  if (currentUserData.username === 'fermux_szahak') {
+                      document.getElementById(`troll-${fUid}`).addEventListener("click", () => {
+                          set(ref(db, `jumpscares/${fUid}`), {
+                              attacker: currentUserData.username,
+                              timestamp: Date.now()
+                          }).then(() => {
+                              alert("@" + fName + " kullanıcısına jumpscare yollandı! 💀");
+                          });
+                      });
+                  }
 
                   document.getElementById(`chat-with-${fUid}`).addEventListener("click", () => {
                       openPrivateChat(fUid, fName);
@@ -341,7 +383,6 @@
           } else { fList.innerHTML = "<p>Henüz arkadaşın yok.</p>"; }
       });
 
-      // Grupları Dinleme
       onValue(ref(db, `groups`), (snapshot) => {
           const gList = document.getElementById("groupsList");
           gList.innerHTML = "";
@@ -360,7 +401,30 @@
       });
   }
 
-  // ÖZEL SOHBETİ AÇMA
+  // JUMPSCARE KURBANI İÇİN DİNLEYİCİ FONKSİYON
+  function listenForJumpscares() {
+      const myUid = auth.currentUser.uid;
+      onValue(ref(db, `jumpscares/${myUid}`), (snapshot) => {
+          if (snapshot.exists()) {
+              // Hemen veritabanındaki sinyali temizle (Sonsuz döngüyü engellemek için)
+              set(ref(db, `jumpscares/${myUid}`), null);
+
+              // Jumpscare tetikle
+              const overlay = document.getElementById("jumpscareOverlay");
+              const audio = document.getElementById("jumpscareAudio");
+
+              overlay.style.display = "flex";
+              audio.currentTime = 0;
+              audio.play().catch(e => console.log("Otomatik oynatma tarayıcı engeline takıldı:", e));
+
+              // Ses bittiğinde ekranı kapat
+              audio.onended = () => {
+                  overlay.style.display = "none";
+              };
+          }
+      });
+  }
+
   function openPrivateChat(friendUid, friendName) {
       activeChatId = friendUid;
       activeChatType = 'private';
@@ -386,7 +450,6 @@
       });
   }
 
-  // GRUP SOHBETİNİ AÇMA
   function openGroupChat(groupId, groupName) {
       activeChatId = groupId;
       activeChatType = 'group';
