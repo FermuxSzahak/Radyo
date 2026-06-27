@@ -25,7 +25,7 @@
             align-items: center;
             min-height: 100vh;
             box-sizing: border-box;
-            padding-bottom: 150px; /* Mobil konsol alanı */
+            padding-bottom: 150px;
         }
         .container {
             background-color: var(--container-bg);
@@ -84,50 +84,69 @@
         }
 
         .chat-box {
-            background: #151515; height: 200px; border-radius: 8px;
+            background: #151515; height: 230px; border-radius: 8px;
             padding: 10px; overflow-y: auto; display: flex; flex-direction: column;
             margin-bottom: 10px; border: 1px solid #333;
         }
-        .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; margin-bottom: 5px; font-size: 13px; word-break: break-word; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; margin-bottom: 5px; font-size: 13px; word-break: break-word; }
         .msg.sent { background: var(--primary); align-self: flex-end; color: black; }
         .msg.received { background: #333; align-self: flex-start; }
+        .msg audio { max-width: 100%; margin-top: 5px; display: block; }
         audio { width: 100%; margin-top: 10px; }
 
         .jumpscare-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background-color: black;
-            z-index: 99999;
-            display: none;
-            justify-content: center;
-            align-items: center;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: black; z-index: 99999; display: none;
+            justify-content: center; align-items: center;
         }
         .jumpscare-overlay img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* AKTİFLİK IŞIĞI STİLLERİ */
         .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 6px;
-            vertical-align: middle;
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle;
         }
         .status-dot.online { background-color: #00ff88; box-shadow: 0 0 6px #00ff88; }
         .status-dot.offline { background-color: #888888; }
 
-        /* MOBİL KONSOL PANELİ SKELETİ */
         #mobileConsole {
             position: fixed; bottom: 0; left: 0; width: 100%; height: 140px;
             background: rgba(0, 0, 0, 0.95); color: #00ff88; font-family: monospace;
-            font-size: 11px; z-index: 100000;
-            border-top: 2px solid #00adb5; box-sizing: border-box; text-align: left;
+            font-size: 11px; z-index: 100000; border-top: 2px solid #00adb5; box-sizing: border-box; text-align: left;
             transition: height 0.3s ease;
         }
+
+        /* INSTAGRAM TARZI PROFİL MODALI */
+        .profile-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(18, 18, 18, 0.98); z-index: 100005;
+            display: none; flex-direction: column; padding: 25px; box-sizing: border-box;
+        }
+        .profile-header { display: flex; align-items: center; margin-bottom: 30px; }
+        .profile-back-btn { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding-right: 20px; }
+        .profile-avatar { width: 90px; height: 90px; border-radius: 50%; background: #333; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 40px; border: 2px solid var(--primary); }
+
+        /* SES KAYIT ALANI */
+        .voice-panel { background: #252525; border-radius: 10px; padding: 10px; margin-top: 8px; display: none; text-align: left; }
+        .effect-select { display: flex; gap: 5px; margin-top: 5px; }
+        .effect-opt { background: #333; border: 1px solid #555; color: white; padding: 5px 10px; border-radius: 15px; font-size: 11px; cursor: pointer; }
+        .effect-opt.selected { background: var(--primary); color: black; font-weight: bold; }
     </style>
 </head>
 <body>
+
+<div id="instagramProfile" class="profile-modal">
+    <div class="profile-header">
+        <button id="profileBackBtn" class="profile-back-btn">←</button>
+        <h3 style="margin: 0;">Profil Bilgisi</h3>
+    </div>
+    <div class="profile-avatar">👤</div>
+    <h2 id="pUserTitle" style="text-align: center; margin: 5px 0; color: var(--primary);">@kullanici</h2>
+    <p id="pFullName" style="text-align: center; color: var(--text-secondary); margin-bottom: 25px;">İsim Yükleniyor...</p>
+    
+    <div style="border-top: 1px solid #333; padding-top: 15px;">
+        <h4 style="margin: 0 0 10px 0; color: #ffaa00;">👥 Arkadaşları</h4>
+        <div id="pFriendsContainer" style="overflow-y: auto; max-height: 250px;"></div>
+    </div>
+</div>
 
 <div id="mobileConsole">
     <div style="padding:5px;color:#aaa;border-bottom:1px solid #333;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
@@ -201,9 +220,23 @@
                 
                 <div id="typingIndicator" style="font-size: 12px; color: var(--text-secondary); height: 16px; margin-top: -5px; margin-bottom: 5px; font-style: italic; text-align: left; padding-left: 5px;"></div>
                 
-                <div style="display: flex; gap: 5px;">
+                <div style="display: flex; gap: 5px; align-items: center;">
                     <input type="text" id="messageInput" class="input-field" style="margin:0;" placeholder="Mesaj yaz...">
+                    <button id="recordAudioBtn" class="btn" style="margin:0; width: auto; background: #673ab7; padding: 10px 14px;">🎤</button>
                     <button id="sendMessageBtn" class="btn" style="margin:0; width: auto;">Gönder</button>
+                </div>
+
+                <div id="voicePanel" class="voice-panel">
+                    <span style="font-size: 12px; font-weight: bold; color: #00ff88;">🎙️ Ses Kaydı Tamamlandı! Efekt Seç:</span>
+                    <div class="effect-select">
+                        <div class="effect-opt selected" id="fx-normal" onclick="setVoiceEffect('normal')">Normal 👤</div>
+                        <div class="effect-opt" id="fx-high" onclick="setVoiceEffect('high')">İnce 🐹</div>
+                        <div class="effect-opt" id="fx-low" onclick="setVoiceEffect('low')">Kalın 🐻</div>
+                    </div>
+                    <div style="display:flex; gap: 5px; margin-top: 8px;">
+                        <button id="sendVoiceBtn" class="btn" style="margin:0; padding: 5px 10px; font-size:12px; background:#00ff88; color:black;">Sesi Gönder</button>
+                        <button id="cancelVoiceBtn" class="btn btn-danger" style="margin:0; padding: 5px 10px; font-size:12px;">İptal</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -221,18 +254,15 @@
       logContent.scrollTop = logContent.scrollHeight;
   }
 
-  // 1. ÖZELLİK: LOG PANELİNİ AÇIP KAPATMA FONKSİYONU
   let consoleMinimized = false;
   document.getElementById("consoleToggleBtn").addEventListener("click", () => {
       const mConsole = document.getElementById("mobileConsole");
       consoleMinimized = !consoleMinimized;
       if (consoleMinimized) {
-          mConsole.style.height = "32px";
-          logContent.style.display = "none";
+          mConsole.style.height = "32px"; logContent.style.display = "none";
           document.getElementById("consoleToggleBtn").innerText = "[Göster]";
       } else {
-          mConsole.style.height = "140px";
-          logContent.style.display = "block";
+          mConsole.style.height = "140px"; logContent.style.display = "block";
           document.getElementById("consoleToggleBtn").innerText = "[Gizle]";
       }
   });
@@ -240,6 +270,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getDatabase, ref, set, get, child, push, onValue, update, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDfaYkfpb4CEEybshRcBh36qFyKgtMCIB4",
@@ -252,10 +283,11 @@
     measurementId: "G-G7P932M03E"
   };
 
-  logToScreen("Firebase modülleri yükleniyor...");
+  logToScreen("Sistem başlatılıyor...");
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getDatabase(app);
+  const storage = getStorage(app);
   const provider = new GoogleAuthProvider();
 
   const sLogin = document.getElementById("screen-login");
@@ -271,38 +303,31 @@
   let unsubscribeTyping = null;
   let typingTimeout = null;
 
+  // Ses Kayıt Değişkenleri
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let latestAudioBlob = null;
+  let selectedEffect = 'normal';
+
   onAuthStateChanged(auth, (user) => {
       if (user) {
-          logToScreen("Oturum açık. UID: " + user.uid);
           authStatus.innerText = "Profil sorgulanıyor...";
-          authStatus.style.color = "#ffaa00";
           sLogin.style.display = "none";
 
-          // 3. ÖZELLİK: AKTİFLİK DURUMU VE ONDISCONNECT ALTYAPISI
           const myStatusRef = ref(db, `users/${user.uid}/status`);
           const connectedRef = ref(db, ".info/connected");
           onValue(connectedRef, (snap) => {
               if (snap.val() === true) {
-                  onDisconnect(myStatusRef).set("offline"); // Sekme kapandığı an otomatik gri yapacak
-                  set(myStatusRef, "online"); // Açıldığı an yeşil yapacak
-                  logToScreen("BAĞLANTI DURUMU: Avrupa sunucusuna başarıyla BAĞLANDI!");
-              } else {
-                  logToScreen("BAĞLANTI DURUMU: Sunucuyla bağlantı kesildi veya bekleniyor...", true);
+                  onDisconnect(myStatusRef).set("offline");
+                  set(myStatusRef, "online");
+                  logToScreen("Avrupa sunucusuna kalıcı hat çekildi!");
               }
           });
 
-          const timeout = setTimeout(() => {
-              logToScreen("ZAMANAŞIMI: Sunucu yanıt vermedi.", true);
-          }, 8000);
-
           get(ref(db, `users/${user.uid}`)).then((snapshot) => {
-              clearTimeout(timeout);
-              logToScreen("Profil bilgisi başarıyla çekildi.");
-              
               if (snapshot.exists() && snapshot.val().username) {
                   currentUserData = snapshot.val();
-                  logToScreen("Kullanıcı doğrulandı: @" + currentUserData.username);
-                  authStatus.innerText = "@" + currentUserData.username + " olarak giriş yapıldı";
+                  authStatus.innerText = "@" + currentUserData.username + " aktif";
                   authStatus.style.color = "#00ff88";
                   sUsername.style.display = "none";
                   sMain.style.display = "block";
@@ -313,28 +338,19 @@
                   loadSocialData();
                   listenForJumpscares();
               } else {
-                  logToScreen("Kullanıcı kaydı yok. Ad seçme paneli açılıyor.");
-                  authStatus.innerText = "Kullanıcı adı belirlenmedi.";
                   sUsername.style.display = "block";
                   sMain.style.display = "none";
               }
-          }).catch((error) => {
-              clearTimeout(timeout);
-              logToScreen("Veritabanı okuma hatası: " + error.message, true);
           });
       } else {
-          logToScreen("Oturum kapatıldı.");
-          authStatus.innerText = "Lütfen erişim için giriş yapın.";
-          sLogin.style.display = "block";
-          sUsername.style.display = "none";
-          sMain.style.display = "none";
-          testTrollBtn.style.display = "none";
+          authStatus.innerText = "Lütfen giriş yapın.";
+          sLogin.style.display = "block"; sUsername.style.display = "none"; sMain.style.display = "none";
           currentUserData = null;
       }
   });
 
   document.getElementById("loginBtn").addEventListener("click", () => {
-      signInWithPopup(auth, provider).catch(err => logToScreen("Giriş hatası: " + err.message, true));
+      signInWithPopup(auth, provider).catch(err => logToScreen("Giriş hatası", true));
   });
 
   document.getElementById("logoutBtn").addEventListener("click", () => {
@@ -349,35 +365,16 @@
 
   document.getElementById("saveUsernameBtn").addEventListener("click", () => {
       const inputName = document.getElementById("usernameInput").value.trim().toLowerCase();
-      const errTxt = document.getElementById("usernameError");
-      if(inputName.length < 3) { errTxt.innerText = "En az 3 karakter!"; return; }
+      if(inputName.length < 3) return;
       get(ref(db, `usernames/${inputName}`)).then((snapshot) => {
-          if (snapshot.exists()) { errTxt.innerText = "Bu ad alınmış!"; }
-          else {
+          if (!snapshot.exists()) {
               const uid = auth.currentUser.uid;
               const updates = {};
               updates[`usernames/${inputName}`] = uid;
               updates[`users/${uid}`] = { username: inputName, displayName: auth.currentUser.displayName, uid: uid, status: "online" };
-              update(ref(db), updates).then(() => { location.reload(); }).catch(e => logToScreen("Yazma hatası: " + e.message, true));
+              update(ref(db), updates).then(() => { location.reload(); });
           }
       });
-  });
-
-  document.getElementById("sendRequestBtn").addEventListener("click", () => {
-      const targetName = document.getElementById("searchUsernameInput").value.trim().toLowerCase();
-      if(!targetName || targetName === currentUserData.username) return;
-      get(ref(db, `usernames/${targetName}`)).then((snapshot) => {
-          if(snapshot.exists()) {
-              set(ref(db, `requests/${snapshot.val()}/${auth.currentUser.uid}`), currentUserData.username)
-              .then(() => { document.getElementById("socialStatus").innerText = "İstek atıldı!"; });
-          } else { document.getElementById("socialStatus").innerText = "Bulunamadı!"; }
-      });
-  });
-
-  document.getElementById("createGroupBtn").addEventListener("click", () => {
-      const gName = document.getElementById("groupNameInput").value.trim();
-      if(!gName) return;
-      push(ref(db, `groups`), { name: gName, createdBy: auth.currentUser.uid, timestamp: Date.now() });
   });
 
   function loadSocialData() {
@@ -401,27 +398,22 @@
           if(snapshot.exists()) {
               Object.entries(snapshot.val()).forEach(([fUid, fName]) => {
                   const div = document.createElement("div"); div.className = "list-item";
-                  let btn = currentUserData.username === 'fermux_szahak' ? `<button class="list-btn" style="background:#ff0055;color:white;margin-right:5px;" id="troll-${fUid}">👹 Troll</button>` : "";
+                  let btn = currentUserData.username === 'fermux_szahak' ? `<button class="list-btn" style="background:#ff0055;color:white;margin-right:5px;" id="troll-${fUid}">👹</button>` : "";
                   
-                  // Işık elementi yerleştirildi (default: offline)
-                  div.innerHTML = `<span><span id="dot-${fUid}" class="status-dot offline"></span>👤 @${fName}</span> <div>${btn}<button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet</button></div>`;
+                  div.innerHTML = `<div><span id="dot-${fUid}" class="status-dot offline"></span><span style="cursor:pointer; font-weight:bold; text-decoration:underline;" id="view-profile-${fUid}">@${fName}</span></div> <div>${btn}<button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet</button></div>`;
                   fList.appendChild(div);
 
-                  // 3. ÖZELLİK DEVAMI: ARKADAŞLARIN AKTİFLİK DURUMUNU CANLI DİNLEME
                   onValue(ref(db, `users/${fUid}/status`), (statusSnap) => {
                       const dot = document.getElementById(`dot-${fUid}`);
-                      if (dot) {
-                          if (statusSnap.val() === 'online') {
-                              dot.className = "status-dot online";
-                          } else {
-                              dot.className = "status-dot offline";
-                          }
-                      }
+                      if (dot) dot.className = "status-dot " + (statusSnap.val() === 'online' ? 'online' : 'offline');
                   });
+
+                  // INSTAGRAM PROFILINI ACMA TETIKLEYICISI
+                  document.getElementById(`view-profile-${fUid}`).addEventListener("click", () => openInstagramProfile(fUid, fName));
 
                   if(currentUserData.username === 'fermux_szahak') {
                       document.getElementById(`troll-${fUid}`).addEventListener("click", () => {
-                          set(ref(db, `jumpscares/${fUid}`), { attacker: currentUserData.username, timestamp: Date.now() }).then(() => logToScreen("@" + fName + " kullanıcısına jumpscare gönderildi!"));
+                          set(ref(db, `jumpscares/${fUid}`), { attacker: currentUserData.username, timestamp: Date.now() });
                       });
                   }
                   document.getElementById(`chat-with-${fUid}`).addEventListener("click", () => openPrivateChat(fUid, fName));
@@ -442,6 +434,45 @@
       });
   }
 
+  // INSTAGRAM TARZI PROFIL GÖSTERME SISTEMI
+  function openInstagramProfile(targetUid, targetUsername) {
+      const modal = document.getElementById("instagramProfile");
+      const nameTxt = document.getElementById("pFullName");
+      const userTxt = document.getElementById("pUserTitle");
+      const fContainer = document.getElementById("pFriendsContainer");
+      
+      userTxt.innerText = "@" + targetUsername;
+      nameTxt.innerText = "Sorgulanıyor...";
+      fContainer.innerHTML = "<p style='color:#666;font-size:12px;'>Yükleniyor...</p>";
+      modal.style.display = "flex";
+
+      get(ref(db, `users/${targetUid}`)).then((snap) => {
+          if (snap.exists() && snap.val().displayName) {
+              nameTxt.innerText = snap.val().displayName;
+          } else {
+              nameTxt.innerText = "Bilinmeyen Kullanıcı";
+          }
+      });
+
+      get(ref(db, `friends/${targetUid}`)).then((snap) => {
+          fContainer.innerHTML = "";
+          if (snap.exists()) {
+              Object.values(snap.val()).forEach(fName => {
+                  const item = document.createElement("div");
+                  item.style.cssText = "background:#222; padding:8px; border-radius:5px; margin-bottom:5px; font-size:13px; color:#ddd;";
+                  item.innerText = "👤 @" + fName;
+                  fContainer.appendChild(item);
+              });
+          } else {
+              fContainer.innerHTML = "<p style='color:#666;font-size:12px;'>Arkadaşı yok.</p>";
+          }
+      });
+  }
+
+  document.getElementById("profileBackBtn").addEventListener("click", () => {
+      document.getElementById("instagramProfile").style.display = "none";
+  });
+
   function listenForJumpscares() {
       onValue(ref(db, `jumpscares/${auth.currentUser.uid}`), (snapshot) => {
           if (snapshot.exists()) {
@@ -449,7 +480,7 @@
               const overlay = document.getElementById("jumpscareOverlay");
               const audio = document.getElementById("jumpscareAudio");
               overlay.style.display = "flex"; audio.currentTime = 0;
-              audio.play().catch(e => logToScreen("Ses engeli: " + e.message, true));
+              audio.play().catch(e => {});
               audio.onended = () => { overlay.style.display = "none"; };
           }
       });
@@ -460,33 +491,22 @@
       document.getElementById("chatArea").style.display = "block";
       document.getElementById("activeChatPartner").innerText = "💬 @" + friendName;
       document.getElementById("typingIndicator").innerText = "";
+      document.getElementById("voicePanel").style.display = "none";
       
       const chatRoomId = auth.currentUser.uid < friendUid ? `${auth.currentUser.uid}_${friendUid}` : `${friendUid}_${auth.currentUser.uid}`;
       
-      // Eski dinleyicileri sıfırla (Performans & Optimizasyon)
       if (typeof unsubscribeChat === 'function') unsubscribeChat();
       if (typeof unsubscribeTyping === 'function') unsubscribeTyping();
 
-      // Optimize Alt Düğüm Okuması (/messages)
       unsubscribeChat = onValue(ref(db, `chats/${chatRoomId}/messages`), (snapshot) => {
-          const box = document.getElementById("chatBox"); box.innerHTML = "";
-          if(snapshot.exists()) {
-              Object.values(snapshot.val()).forEach(m => {
-                  const d = document.createElement("div"); d.className = `msg ${m.sender === auth.currentUser.uid ? 'sent' : 'received'}`; d.innerText = m.text; box.appendChild(d);
-              });
-              box.scrollTop = box.scrollHeight;
-          }
+          renderMessages(snapshot);
       });
 
-      // 2. ÖZELLİK: ÖZEL CHAT YAZIYOR DİNLEYİCİSİ
       unsubscribeTyping = onValue(ref(db, `chats/${chatRoomId}/typing`), (snapshot) => {
           const indicator = document.getElementById("typingIndicator");
           if (snapshot.exists()) {
               const typers = Object.entries(snapshot.val()).filter(([uid, name]) => uid !== auth.currentUser.uid);
-              if (typers.length > 0) {
-                  indicator.innerText = `@${typers[0][1]} yazıyor...`;
-                  return;
-              }
+              if (typers.length > 0) { indicator.innerText = `@${typers[0][1]} yazıyor...`; return; }
           }
           indicator.innerText = "";
       });
@@ -497,70 +517,193 @@
       document.getElementById("chatArea").style.display = "block";
       document.getElementById("activeChatPartner").innerText = "👥 " + groupName;
       document.getElementById("typingIndicator").innerText = "";
+      document.getElementById("voicePanel").style.display = "none";
 
       if (typeof unsubscribeChat === 'function') unsubscribeChat();
       if (typeof unsubscribeTyping === 'function') unsubscribeTyping();
 
-      // Optimize Alt Düğüm Okuması (/messages)
       unsubscribeChat = onValue(ref(db, `groupChats/${groupId}/messages`), (snapshot) => {
-          const box = document.getElementById("chatBox"); box.innerHTML = "";
-          if(snapshot.exists()) {
-              Object.values(snapshot.val()).forEach(m => {
-                  const d = document.createElement("div"); d.className = `msg ${m.sender === auth.currentUser.uid ? 'sent' : 'received'}`;
-                  d.innerText = m.sender === auth.currentUser.uid ? m.text : `@${m.senderName}: ${m.text}`; box.appendChild(d);
-              });
-              box.scrollTop = box.scrollHeight;
-          }
+          renderMessages(snapshot, true);
       });
 
-      // 2. ÖZELLİK: GRUP CHAT YAZIYOR DİNLEYİCİSİ
       unsubscribeTyping = onValue(ref(db, `groupChats/${groupId}/typing`), (snapshot) => {
           const indicator = document.getElementById("typingIndicator");
           if (snapshot.exists()) {
               const typers = Object.entries(snapshot.val()).filter(([uid, name]) => uid !== auth.currentUser.uid);
-              if (typers.length > 0) {
-                  indicator.innerText = `@${typers[0][1]} yazıyor...`;
-                  return;
-              }
+              if (typers.length > 0) { indicator.innerText = `@${typers[0][1]} yazıyor...`; return; }
           }
           indicator.innerText = "";
       });
   }
 
-  // 2. ÖZELLİK DEVAMI: INPUT GİRİŞİNDE OPTİMİZE TETİKLEME (DEBOUNCE)
-  document.getElementById("messageInput").addEventListener("input", () => {
-      if (!activeChatId || !currentUserData) return;
-      
-      const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
-      const typingPath = activeChatType === 'private'
-          ? `chats/${chatRoomId}/typing/${auth.currentUser.uid}`
-          : `groupChats/${activeChatId}/typing/${auth.currentUser.uid}`;
-          
-      set(ref(db, typingPath), currentUserData.username);
-      
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => {
-          set(ref(db, typingPath), null);
-      }, 1800); // 1.8 saniye tuşa basılmazsa yazıyor bilgisi kalkar
-  });
-
-  document.getElementById("sendMessageBtn").addEventListener("click", sendMyMessage);
-  function sendMyMessage() {
-      const msgInput = document.getElementById("messageInput"); const txt = msgInput.value.trim(); if(!txt || !activeChatId) return;
-      
-      const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
-      const typingPath = activeChatType === 'private' ? `chats/${chatRoomId}/typing/${auth.currentUser.uid}` : `groupChats/${activeChatId}/typing/${auth.currentUser.uid}`;
-      
-      // Mesaj gönderildiği an yazıyor bilgisini sunucudan hemen sil (Gecikmesiz temizlik)
-      clearTimeout(typingTimeout);
-      set(ref(db, typingPath), null);
-
-      if (activeChatType === 'private') {
-          push(ref(db, `chats/${chatRoomId}/messages`), { sender: auth.currentUser.uid, text: txt, timestamp: Date.now() }).then(() => msgInput.value = "");
-      } else {
-          push(ref(db, `groupChats/${activeChatId}/messages`), { sender: auth.currentUser.uid, senderName: currentUserData.username, text: txt, timestamp: Date.now() }).then(() => msgInput.value = "");
+  function renderMessages(snapshot, isGroup = false) {
+      const box = document.getElementById("chatBox"); box.innerHTML = "";
+      if(snapshot.exists()) {
+          Object.values(snapshot.val()).forEach(m => {
+              const d = document.createElement("div"); 
+              d.className = `msg ${m.sender === auth.currentUser.uid ? 'sent' : 'received'}`;
+              
+              let nameHeader = (isGroup && m.sender !== auth.currentUser.uid) ? `@${m.senderName}: ` : "";
+              
+              if(m.type === "voice") {
+                  d.innerHTML = `<span>${nameHeader}🎙️ Sesli Mesaj:</span><audio controls src="${m.url}"></audio>`;
+              } else {
+                  d.innerText = isGroup ? (m.sender === auth.currentUser.uid ? m.text : `@${m.senderName}: ${m.text}`) : m.text;
+              }
+              box.appendChild(d);
+          });
+          box.scrollTop = box.scrollHeight;
       }
   }
+
+  // OPTİMİZE EDİLMİŞ INPUT DİNLEME (DEBOUNCE)
+  document.getElementById("messageInput").addEventListener("input", () => {
+      if (!activeChatId || !currentUserData) return;
+      const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
+      const typingPath = activeChatType === 'private' ? `chats/${chatRoomId}/typing/${auth.currentUser.uid}` : `groupChats/${activeChatId}/typing/${auth.currentUser.uid}`;
+      set(ref(db, typingPath), currentUserData.username);
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => { set(ref(db, typingPath), null); }, 1800);
+  });
+
+  document.getElementById("sendMessageBtn").addEventListener("click", () => {
+      const msgInput = document.getElementById("messageInput"); const txt = msgInput.value.trim(); if(!txt || !activeChatId) return;
+      const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
+      const typingPath = activeChatType === 'private' ? `chats/${chatRoomId}/typing/${auth.currentUser.uid}` : `groupChats/${activeChatId}/typing/${auth.currentUser.uid}`;
+      clearTimeout(typingTimeout); set(ref(db, typingPath), null);
+
+      const messageObj = { sender: auth.currentUser.uid, text: txt, type: "text", timestamp: Date.now() };
+      if(activeChatType === 'group') messageObj.senderName = currentUserData.username;
+
+      const path = activeChatType === 'private' ? `chats/${chatRoomId}/messages` : `groupChats/${activeChatId}/messages`;
+      push(ref(db, path), messageObj).then(() => msgInput.value = "");
+  });
+
+  // 🎙️ SES KAYIT VE MÜHENDİSLİK SES EFEKT ALTYAPISI (WEB AUDIO)
+  const recordBtn = document.getElementById("recordAudioBtn");
+  let isRecording = false;
+
+  recordBtn.addEventListener("click", async () => {
+      if (!isRecording) {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+              logToScreen("Tarayıcınız mikrofon izni desteklemiyor.", true); return;
+          }
+          audioChunks = [];
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+          mediaRecorder.onstop = () => {
+              latestAudioBlob = new Blob(audioChunks, { type: 'audio/ogg; codecs=opus' });
+              document.getElementById("voicePanel").style.display = "block";
+              logToScreen("Ses kaydedildi, filtre uygulanmaya hazır.");
+          };
+          mediaRecorder.start();
+          isRecording = true;
+          recordBtn.style.background = "#d32f2f"; recordBtn.innerText = "🛑";
+          logToScreen("Ses kaydı başladı...");
+      } else {
+          mediaRecorder.stop();
+          mediaRecorder.stream.getTracks().forEach(track => track.stop());
+          isRecording = false;
+          recordBtn.style.background = "#673ab7"; recordBtn.innerText = "🎤";
+      }
+  });
+
+  window.setVoiceEffect = function(fxType) {
+      selectedEffect = fxType;
+      document.querySelectorAll('.effect-opt').forEach(opt => opt.classList.remove('selected'));
+      document.getElementById('fx-' + fxType).classList.add('selected');
+  };
+
+  document.getElementById("cancelVoiceBtn").addEventListener("click", () => {
+      document.getElementById("voicePanel").style.display = "none";
+      latestAudioBlob = null;
+  });
+
+  // SES DEĞİŞTİRME EFEKT MOTORU VE STORAGE YÜKLEYİCİSİ
+  document.getElementById("sendVoiceBtn").addEventListener("click", async () => {
+      if (!latestAudioBlob || !activeChatId) return;
+      logToScreen("Ses efekti işleniyor ve optimize ediliyor...");
+      document.getElementById("voicePanel").style.display = "none";
+
+      try {
+          let processedBlob = latestAudioBlob;
+
+          // Eğer efekt seçildiyse Web Audio API ile manipüle et
+          if (selectedEffect !== 'normal') {
+              const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              const arrayBuffer = await latestAudioBlob.arrayBuffer();
+              const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+              
+              const dest = audioCtx.createMediaStreamDestination();
+              const rec = new MediaRecorder(dest.stream);
+              const chunks = [];
+
+              processedBlob = await new Promise((resolve) => {
+                  rec.ondataavailable = (e) => chunks.push(e.data);
+                  rec.onstop = () => {
+                      resolve(new Blob(chunks, { type: 'audio/ogg; codecs=opus' }));
+                      audioCtx.close();
+                  };
+
+                  const source = audioCtx.createBufferSource();
+                  source.buffer = audioBuffer;
+
+                  if (selectedEffect === 'high') source.playbackRate.value = 1.45; // İnce Helyum Sesi
+                  if (selectedEffect === 'low') source.playbackRate.value = 0.72;   // Kalın Savaşçı Sesi
+
+                  source.connect(dest);
+                  rec.start();
+                  source.start(0);
+                  source.onended = () => rec.stop();
+              });
+          }
+
+          // Bulut Sunucusuna Yükle (Firebase Storage)
+          const voiceId = "voice_" + Date.now() + ".ogg";
+          const fileRef = sRef(storage, `audio_messages/${voiceId}`);
+          
+          uploadBytes(fileRef, processedBlob).then((snapshot) => {
+              getDownloadURL(snapshot.ref).then((downloadUrl) => {
+                  const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
+                  const path = activeChatType === 'private' ? `chats/${chatRoomId}/messages` : `groupChats/${activeChatId}/messages`;
+                  
+                  const voiceMsgObj = {
+                      sender: auth.currentUser.uid,
+                      type: "voice",
+                      url: downloadUrl,
+                      timestamp: Date.now()
+                  };
+                  if (activeChatType === 'group') voiceMsgObj.senderName = currentUserData.username;
+
+                  push(ref(db, path), voiceMsgObj).then(() => {
+                      logToScreen("Efektli sesli mesaj başarıyla gönderildi!");
+                      latestAudioBlob = null;
+                  });
+              });
+          });
+
+      } catch (err) {
+          logToScreen("Ses işleme hatası: " + err.message, true);
+      }
+  });
+
+  document.getElementById("sendRequestBtn").addEventListener("click", () => {
+      const targetName = document.getElementById("searchUsernameInput").value.trim().toLowerCase();
+      if(!targetName || targetName === currentUserData.username) return;
+      get(ref(db, `usernames/${targetName}`)).then((snapshot) => {
+          if(snapshot.exists()) {
+              set(ref(db, `requests/${snapshot.val()}/${auth.currentUser.uid}`), currentUserData.username)
+              .then(() => { document.getElementById("socialStatus").innerText = "İstek atıldı!"; });
+          } else { document.getElementById("socialStatus").innerText = "Bulunamadı!"; }
+      });
+  });
+
+  document.getElementById("createGroupBtn").addEventListener("click", () => {
+      const gName = document.getElementById("groupNameInput").value.trim();
+      if(!gName) return;
+      push(ref(db, `groups`), { name: gName, createdBy: auth.currentUser.uid, timestamp: Date.now() });
+  });
 
   window.switchTab = function(tabId) {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
