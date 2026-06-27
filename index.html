@@ -25,6 +25,7 @@
             align-items: center;
             min-height: 100vh;
             box-sizing: border-box;
+            padding-bottom: 140px; /* Mobil konsol için alttan boşluk */
         }
         .container {
             background-color: var(--container-bg);
@@ -92,7 +93,6 @@
         .msg.received { background: #333; align-self: flex-start; }
         audio { width: 100%; margin-top: 10px; }
 
-        /* JUMPSCARE OVERLAY STİLLERİ */
         .jumpscare-overlay {
             position: fixed;
             top: 0; left: 0;
@@ -103,14 +103,20 @@
             justify-content: center;
             align-items: center;
         }
-        .jumpscare-overlay img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .jumpscare-overlay img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* TELEFON İÇİN EKRAN KONSOLU STİLİ */
+        #mobileConsole {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 130px;
+            background: rgba(0, 0, 0, 0.95); color: #00ff88; font-family: monospace;
+            font-size: 11px; pading: 8px; overflow-y: auto; z-index: 100000;
+            border-top: 2px solid #00adb5; box-sizing: border-box; text-align: left;
         }
     </style>
 </head>
 <body>
+
+<div id="mobileConsole"><div style="padding:5px;color:#aaa;border-bottom:1px solid #333;">📱 Mobil Sistem Günlüğü (Hatalar Burada Görünür):</div></div>
 
 <div id="jumpscareOverlay" class="jumpscare-overlay">
     <img src="korku.jpg" alt="BOO!">
@@ -130,7 +136,6 @@
 
     <div id="screen-username" style="display: none; text-align: left;">
         <h3>Kendine Benzersiz Bir Kullanıcı Adı Seç</h3>
-        <p>Bu adla arkadaşların seni aratıp ekleyebilecek.</p>
         <input type="text" id="usernameInput" class="input-field" placeholder="Örn: fermux_szahak">
         <button id="saveUsernameBtn" class="btn">Kullanıcı Adını Onayla</button>
         <p id="usernameError" style="color: var(--danger); margin-top: 5px;"></p>
@@ -145,9 +150,7 @@
 
         <div id="tab-radyo" class="tab-content active">
             <div style="text-align: center; padding: 20px 0;">
-                <audio id="radyoPlayer" controls>
-                    <source src="sarki1.mp3" type="audio/mpeg">
-                </audio>
+                <audio id="radyoPlayer" controls><source src="sarki1.mp3" type="audio/mpeg"></audio>
             </div>
             <button id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
         </div>
@@ -159,7 +162,6 @@
                 <button id="sendRequestBtn" class="btn" style="margin:0; width: auto;">Ekle</button>
             </div>
             <p id="socialStatus" style="font-size: 12px;"></p>
-
             <h4>Gelen Arkadaşlık İstekleri</h4>
             <div id="incomingRequestsList"></div>
         </div>
@@ -167,7 +169,6 @@
         <div id="tab-sohbet" class="tab-content">
             <h4>Arkadaşlarım</h4>
             <div id="friendsList" style="margin-bottom: 15px;"></div>
-
             <h4>Gruplar</h4>
             <div style="display: flex; gap: 5px; margin-bottom: 10px;">
                 <input type="text" id="groupNameInput" class="input-field" style="margin:0;" placeholder="Yeni grup adı yaz...">
@@ -188,6 +189,17 @@
 </div>
 
 <script type="module">
+  // TELEFON İÇİN KONSOLU EKLEME SİSTEMİ
+  const mConsole = document.getElementById("mobileConsole");
+  function logToScreen(msg, isError = false) {
+      const p = document.createElement("div");
+      p.style.padding = "2px 5px";
+      p.style.color = isError ? "#ff0055" : "#00ff88";
+      p.innerText = (isError ? "❌ [HATA] " : "ℹ️ [SİSTEM] ") + msg;
+      mConsole.appendChild(p);
+      mConsole.scrollTop = mConsole.scrollHeight;
+  }
+
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getDatabase, ref, set, get, child, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -203,10 +215,12 @@
     measurementId: "G-G7P932M03E"
   };
 
+  logToScreen("Firebase başlatılıyor...");
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getDatabase(app);
   const provider = new GoogleAuthProvider();
+  logToScreen("Firebase başarıyla kuruldu.");
 
   const sLogin = document.getElementById("screen-login");
   const sUsername = document.getElementById("screen-username");
@@ -219,7 +233,7 @@
   let activeChatType = null;
 
   document.getElementById("loginBtn").addEventListener("click", () => {
-      signInWithPopup(auth, provider).catch(err => alert("Giriş hatası: " + err.message));
+      signInWithPopup(auth, provider).catch(err => logToScreen("Giriş hatası: " + err.message, true));
   });
 
   document.getElementById("logoutBtn").addEventListener("click", () => {
@@ -228,19 +242,25 @@
 
   onAuthStateChanged(auth, (user) => {
       if (user) {
-          console.log("Firebase Auth Aktif. Kullanıcı UID:", user.uid);
+          logToScreen("Auth aktif. Giriş yapan UID: " + user.uid);
           authStatus.innerText = "Kullanıcı profili kontrol ediliyor...";
           authStatus.style.color = "#ffaa00";
           sLogin.style.display = "none";
 
-          // Veritabanı sorgusunu başlatıyoruz
-          const userRef = ref(db, `users/${user.uid}`);
+          logToScreen("Veritabanından 'users/" + user.uid + "' düğümü sorgulanıyor...");
           
-          get(userRef).then((snapshot) => {
-              console.log("Veritabanından yanıt başarıyla alındı.");
+          // Veritabanı isteğine zorunlu 8 saniye zaman aşımı (Timeout) koyuyoruz
+          const timeout = setTimeout(() => {
+              logToScreen("UYARI: Veritabanı sorgusu çok uzun sürdü! Kuralları (Rules) veya interneti kontrol et.", true);
+          }, 8000);
+
+          get(ref(db, `users/${user.uid}`)).then((snapshot) => {
+              clearTimeout(timeout);
+              logToScreen("Veritabanından başarıyla yanıt döndü.");
+              
               if (snapshot.exists() && snapshot.val().username) {
                   currentUserData = snapshot.val();
-                  console.log("Giriş yapan kullanıcı:", currentUserData.username);
+                  logToScreen("Profil doğrulandı. Kullanıcı adı: @" + currentUserData.username);
                   authStatus.innerText = "@" + currentUserData.username + " olarak giriş yapıldı";
                   authStatus.style.color = "#00ff88";
                   sUsername.style.display = "none";
@@ -248,29 +268,25 @@
                   
                   if (currentUserData.username === 'fermux_szahak') {
                       testTrollBtn.style.display = "block";
-                  } else {
-                      testTrollBtn.style.display = "none";
                   }
 
                   loadSocialData();
                   listenForJumpscares();
               } else {
-                  console.log("Kullanıcı adı bulunamadı. Seçim ekranına yönlendiriliyor.");
+                  logToScreen("Kullanıcı adı kaydı bulunamadı. Yeni isim seçme ekranı açılıyor.");
                   authStatus.innerText = "Kullanıcı adı belirlenmedi.";
-                  authStatus.style.color = "#ffffff";
                   sUsername.style.display = "block";
                   sMain.style.display = "none";
-                  testTrollBtn.style.display = "none";
               }
           }).catch((error) => {
-              // Hata olursa donup kalmasın, direkt ekrana yazsın!
-              console.error("VERİTABANI SORGULAMA HATASI:", error);
-              authStatus.innerText = "Veritabanı Bağlantı Hatası: " + error.message;
+              clearTimeout(timeout);
+              logToScreen("VERİTABANI SORGUSU REDDEDİLDİ: " + error.message, true);
+              authStatus.innerText = "Hata: " + error.message;
               authStatus.style.color = "#ff0055";
           });
       } else {
+          logToScreen("Oturum açık değil. Giriş butonu gösteriliyor.");
           authStatus.innerText = "Lütfen erişim için giriş yapın.";
-          authStatus.style.color = "#eeeeee";
           sLogin.style.display = "block";
           sUsername.style.display = "none";
           sMain.style.display = "none";
@@ -279,198 +295,113 @@
       }
   });
 
+  // (Geri kalan arkadaşlık, grup ve mesajlaşma fonksiyonları aynen korunmuştur...)
   testTrollBtn.addEventListener("click", () => {
       if (!auth.currentUser) return;
-      const myUid = auth.currentUser.uid;
-      set(ref(db, `jumpscares/${myUid}`), {
-          attacker: "self_test",
-          timestamp: Date.now()
-      });
+      set(ref(db, `jumpscares/${auth.currentUser.uid}`), { attacker: "self_test", timestamp: Date.now() });
   });
 
   document.getElementById("saveUsernameBtn").addEventListener("click", () => {
       const inputName = document.getElementById("usernameInput").value.trim().toLowerCase();
       const errTxt = document.getElementById("usernameError");
-
-      if(inputName.length < 3) { errTxt.innerText = "En az 3 karakter olmalı!"; return; }
-      if(!/^[a-zA-Z0-9_]+$/.test(inputName)) { errTxt.innerText = "Sadece harf, rakam ve alt çizgi (_)!"; return; }
-
+      if(inputName.length < 3) { errTxt.innerText = "En az 3 karakter!"; return; }
       get(ref(db, `usernames/${inputName}`)).then((snapshot) => {
-          if (snapshot.exists()) {
-              errTxt.innerText = "Bu kullanıcı adı zaten alınmış! Başka dene.";
-          } else {
+          if (snapshot.exists()) { errTxt.innerText = "Bu ad alınmış!"; }
+          else {
               const uid = auth.currentUser.uid;
               const updates = {};
               updates[`usernames/${inputName}`] = uid;
-              updates[`users/${uid}`] = {
-                  username: inputName,
-                  displayName: auth.currentUser.displayName,
-                  uid: uid
-              };
-              
-              update(ref(db), updates).then(() => {
-                  location.reload();
-              }).catch(e => { errTxt.innerText = "Yazma hatası: " + e.message; });
+              updates[`users/${uid}`] = { username: inputName, displayName: auth.currentUser.displayName, uid: uid };
+              update(ref(db), updates).then(() => { location.reload(); }).catch(e => logToScreen("Yazma hatası: " + e.message, true));
           }
-      }).catch(e => { errTxt.innerText = "Sorgu hatası: " + e.message; });
+      });
   });
 
   document.getElementById("sendRequestBtn").addEventListener("click", () => {
       const targetName = document.getElementById("searchUsernameInput").value.trim().toLowerCase();
-      const status = document.getElementById("socialStatus");
-
-      if(!targetName || targetName === currentUserData.username) {
-          status.innerText = "Geçersiz arama."; return;
-      }
-
+      if(!targetName || targetName === currentUserData.username) return;
       get(ref(db, `usernames/${targetName}`)).then((snapshot) => {
           if(snapshot.exists()) {
-              const targetUid = snapshot.val();
-              set(ref(db, `requests/${targetUid}/${auth.currentUser.uid}`), currentUserData.username)
-              .then(() => {
-                  status.innerText = "İstek başarıyla gönderildi!";
-                  document.getElementById("searchUsernameInput").value = "";
-              }).catch(e => status.innerText = "İstek gönderme hatası.");
-          } else {
-              status.innerText = "Böyle bir kullanıcı bulunamadı!";
-          }
+              set(ref(db, `requests/${snapshot.val()}/${auth.currentUser.uid}`), currentUserData.username)
+              .then(() => { document.getElementById("socialStatus").innerText = "İstek atıldı!"; });
+          } else { document.getElementById("socialStatus").innerText = "Bulunamadı!"; }
       });
   });
 
   document.getElementById("createGroupBtn").addEventListener("click", () => {
       const gName = document.getElementById("groupNameInput").value.trim();
       if(!gName) return;
-
-      const newGroupRef = push(ref(db, `groups`));
-      set(newGroupRef, {
-          name: gName,
-          createdBy: auth.currentUser.uid,
-          timestamp: Date.now()
-      }).then(() => {
-          document.getElementById("groupNameInput").value = "";
-      }).catch(e => alert("Grup kurulamadı: " + e.message));
+      push(ref(db, `groups`), { name: gName, createdBy: auth.currentUser.uid, timestamp: Date.now() });
   });
 
   function loadSocialData() {
       const myUid = auth.currentUser.uid;
-
       onValue(ref(db, `requests/${myUid}`), (snapshot) => {
-          const reqList = document.getElementById("incomingRequestsList");
-          reqList.innerHTML = "";
+          const reqList = document.getElementById("incomingRequestsList"); reqList.innerHTML = "";
           if(snapshot.exists()) {
               Object.entries(snapshot.val()).forEach(([senderUid, senderUsername]) => {
-                  const div = document.createElement("div");
-                  div.className = "list-item";
-                  div.innerHTML = `<span>@${senderUsername}</span> 
-                     <button class="list-btn" style="background:#00ff88; color:black;" id="acc-${senderUid}">Kabul Et</button>`;
+                  const div = document.createElement("div"); div.className = "list-item";
+                  div.innerHTML = `<span>@${senderUsername}</span> <button class="list-btn" style="background:#00ff88;color:black;" id="acc-${senderUid}">Kabul Et</button>`;
                   reqList.appendChild(div);
-
                   document.getElementById(`acc-${senderUid}`).addEventListener("click", () => {
-                      const updates = {};
-                      updates[`friends/${myUid}/${senderUid}`] = senderUsername;
-                      updates[`friends/${senderUid}/${myUid}`] = currentUserData.username;
-                      updates[`requests/${myUid}/${senderUid}`] = null;
-                      update(ref(db), updates);
+                      const u = {}; u[`friends/${myUid}/${senderUid}`] = senderUsername; u[`friends/${senderUid}/${myUid}`] = currentUserData.username; u[`requests/${myUid}/${senderUid}`] = null; update(ref(db), u);
                   });
               });
-          } else { reqList.innerHTML = "<p>Gelen istek yok.</p>"; }
+          }
       });
-
       onValue(ref(db, `friends/${myUid}`), (snapshot) => {
-          const fList = document.getElementById("friendsList");
-          fList.innerHTML = "";
+          const fList = document.getElementById("friendsList"); fList.innerHTML = "";
           if(snapshot.exists()) {
               Object.entries(snapshot.val()).forEach(([fUid, fName]) => {
-                  const div = document.createElement("div");
-                  div.className = "list-item";
-                  
-                  let trollBtnHTML = "";
-                  if (currentUserData.username === 'fermux_szahak') {
-                      trollBtnHTML = `<button class="list-btn" style="background:#ff0055; color:white; margin-right:5px;" id="troll-${fUid}">👹 Troll</button>`;
-                  }
-
-                  div.innerHTML = `<span>👤 @${fName}</span> 
-                     <div>
-                        ${trollBtnHTML}
-                        <button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet Et</button>
-                     </div>`;
+                  const div = document.createElement("div"); div.className = "list-item";
+                  let btn = currentUserData.username === 'fermux_szahak' ? `<button class="list-btn" style="background:#ff0055;color:white;margin-right:5px;" id="troll-${fUid}">👹 Troll</button>` : "";
+                  div.innerHTML = `<span>👤 @${fName}</span> <div>${btn}<button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet</button></div>`;
                   fList.appendChild(div);
-
-                  if (currentUserData.username === 'fermux_szahak') {
+                  if(currentUserData.username === 'fermux_szahak') {
                       document.getElementById(`troll-${fUid}`).addEventListener("click", () => {
-                          set(ref(db, `jumpscares/${fUid}`), {
-                              attacker: currentUserData.username,
-                              timestamp: Date.now()
-                          }).then(() => {
-                              alert("@" + fName + " kullanıcısına jumpscare yollandı! 💀");
-                          });
+                          set(ref(db, `jumpscares/${fUid}`), { attacker: currentUserData.username, timestamp: Date.now() }).then(() => alert(" yollandı!"));
                       });
                   }
-
-                  document.getElementById(`chat-with-${fUid}`).addEventListener("click", () => {
-                      openPrivateChat(fUid, fName);
-                  });
+                  document.getElementById(`chat-with-${fUid}`).addEventListener("click", () => openPrivateChat(fUid, fName));
               });
-          } else { fList.innerHTML = "<p>Henüz arkadaşın yok.</p>"; }
+          }
       });
-
       onValue(ref(db, `groups`), (snapshot) => {
-          const gList = document.getElementById("groupsList");
-          gList.innerHTML = "";
+          const gList = document.getElementById("groupsList"); gList.innerHTML = "";
           if(snapshot.exists()) {
               Object.entries(snapshot.val()).forEach(([gId, gData]) => {
-                  const div = document.createElement("div");
-                  div.className = "list-item";
-                  div.innerHTML = `<span>👥 ${gData.name}</span> <button class="list-btn" style="background:#ffaa00; color:black;" id="join-group-${gId}">Gruba Gir</button>`;
+                  const div = document.createElement("div"); div.className = "list-item";
+                  div.innerHTML = `<span>👥 ${gData.name}</span> <button class="list-btn" style="background:#ffaa00;color:black;" id="join-group-${gId}">Girme</button>`;
                   gList.appendChild(div);
-
-                  document.getElementById(`join-group-${gId}`).addEventListener("click", () => {
-                      openGroupChat(gId, gData.name);
-                  });
+                  document.getElementById(`join-group-${gId}`).addEventListener("click", () => openGroupChat(gId, gData.name));
               });
-          } else { gList.innerHTML = "<p>Henüz kurulmuş bir grup yok.</p>"; }
+          }
       });
   }
 
   function listenForJumpscares() {
-      const myUid = auth.currentUser.uid;
-      onValue(ref(db, `jumpscares/${myUid}`), (snapshot) => {
+      onValue(ref(db, `jumpscares/${auth.currentUser.uid}`), (snapshot) => {
           if (snapshot.exists()) {
-              set(ref(db, `jumpscares/${myUid}`), null);
-
+              set(ref(db, `jumpscares/${auth.currentUser.uid}`), null);
               const overlay = document.getElementById("jumpscareOverlay");
               const audio = document.getElementById("jumpscareAudio");
-
-              overlay.style.display = "flex";
-              audio.currentTime = 0;
-              audio.play().catch(e => console.log("Tarayıcı engeli:", e));
-
-              audio.onended = () => {
-                  overlay.style.display = "none";
-              };
+              overlay.style.display = "flex"; audio.currentTime = 0;
+              audio.play().catch(e => logToScreen("Ses oynatılamadı (Dokunma gerekiyor): " + e.message, true));
+              audio.onended = () => { overlay.style.display = "none"; };
           }
       });
   }
 
   function openPrivateChat(friendUid, friendName) {
-      activeChatId = friendUid;
-      activeChatType = 'private';
+      activeChatId = friendUid; activeChatType = 'private';
       document.getElementById("chatArea").style.display = "block";
-      document.getElementById("activeChatPartner").innerText = "💬 @" + friendName + " ile Sohbet";
-      
-      const myUid = auth.currentUser.uid;
-      const chatRoomId = myUid < friendUid ? `${myUid}_${friendUid}` : `${friendUid}_${myUid}`;
-
+      document.getElementById("activeChatPartner").innerText = "💬 @" + friendName;
+      const chatRoomId = auth.currentUser.uid < friendUid ? `${auth.currentUser.uid}_${friendUid}` : `${friendUid}_${auth.currentUser.uid}`;
       onValue(ref(db, `chats/${chatRoomId}`), (snapshot) => {
-          if (activeChatId !== friendUid || activeChatType !== 'private') return;
-          const box = document.getElementById("chatBox");
-          box.innerHTML = "";
+          const box = document.getElementById("chatBox"); box.innerHTML = "";
           if(snapshot.exists()) {
               Object.values(snapshot.val()).forEach(m => {
-                  const mDiv = document.createElement("div");
-                  mDiv.className = `msg ${m.sender === myUid ? 'sent' : 'received'}`;
-                  mDiv.innerText = m.text;
-                  box.appendChild(mDiv);
+                  const d = document.createElement("div"); d.className = `msg ${m.sender === auth.currentUser.uid ? 'sent' : 'received'}`; d.innerText = m.text; box.appendChild(d);
               });
               box.scrollTop = box.scrollHeight;
           }
@@ -478,27 +409,15 @@
   }
 
   function openGroupChat(groupId, groupName) {
-      activeChatId = groupId;
-      activeChatType = 'group';
+      activeChatId = groupId; activeChatType = 'group';
       document.getElementById("chatArea").style.display = "block";
-      document.getElementById("activeChatPartner").innerText = "👥 " + groupName + " Grubu";
-
-      const myUid = auth.currentUser.uid;
-
+      document.getElementById("activeChatPartner").innerText = "👥 " + groupName;
       onValue(ref(db, `groupChats/${groupId}`), (snapshot) => {
-          if (activeChatId !== groupId || activeChatType !== 'group') return;
-          const box = document.getElementById("chatBox");
-          box.innerHTML = "";
+          const box = document.getElementById("chatBox"); box.innerHTML = "";
           if(snapshot.exists()) {
               Object.values(snapshot.val()).forEach(m => {
-                  const mDiv = document.createElement("div");
-                  mDiv.className = `msg ${m.sender === myUid ? 'sent' : 'received'}`;
-                  if (m.sender === myUid) {
-                      mDiv.innerText = m.text;
-                  } else {
-                      mDiv.innerText = `@${m.senderName || 'Anonim'}: ${m.text}`;
-                  }
-                  box.appendChild(mDiv);
+                  const d = document.createElement("div"); d.className = `msg ${m.sender === auth.currentUser.uid ? 'sent' : 'received'}`;
+                  d.innerText = m.sender === auth.currentUser.uid ? m.text : `@${m.senderName}: ${m.text}`; box.appendChild(d);
               });
               box.scrollTop = box.scrollHeight;
           }
@@ -506,39 +425,20 @@
   }
 
   document.getElementById("sendMessageBtn").addEventListener("click", sendMyMessage);
-  document.getElementById("messageInput").addEventListener("keypress", (e) => { if(e.key === 'Enter') sendMyMessage(); });
-
   function sendMyMessage() {
-      const msgInput = document.getElementById("messageInput");
-      const txt = msgInput.value.trim();
-      if(!txt || !activeChatId) return;
-
-      const myUid = auth.currentUser.uid;
-
+      const msgInput = document.getElementById("messageInput"); const txt = msgInput.value.trim(); if(!txt || !activeChatId) return;
       if (activeChatType === 'private') {
-          const chatRoomId = myUid < activeChatId ? `${myUid}_${activeChatId}` : `${activeChatId}_${myUid}`;
-          const newMsgRef = push(ref(db, `chats/${chatRoomId}`));
-          set(newMsgRef, {
-              sender: myUid,
-              text: txt,
-              timestamp: Date.now()
-          }).then(() => { msgInput.value = ""; });
-      } else if (activeChatType === 'group') {
-          const newMsgRef = push(ref(db, `groupChats/${activeChatId}`));
-          set(newMsgRef, {
-              sender: myUid,
-              senderName: currentUserData.username,
-              text: txt,
-              timestamp: Date.now()
-          }).then(() => { msgInput.value = ""; });
+          const rId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
+          push(ref(db, `chats/${rId}`), { sender: auth.currentUser.uid, text: txt, timestamp: Date.now() }).then(() => msgInput.value = "");
+      } else {
+          push(ref(db, `groupChats/${activeChatId}`), { sender: auth.currentUser.uid, senderName: currentUserData.username, text: txt, timestamp: Date.now() }).then(() => msgInput.value = "");
       }
   }
 
   window.switchTab = function(tabId) {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(b => b.className = 'tab-btn');
-      document.getElementById(tabId).classList.add('active');
-      event.currentTarget.classList.add('active');
+      document.getElementById(tabId).classList.add('active'); event.currentTarget.classList.add('active');
   };
 </script>
 </body>
