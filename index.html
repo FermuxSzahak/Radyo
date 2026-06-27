@@ -25,7 +25,7 @@
             align-items: center;
             min-height: 100vh;
             box-sizing: border-box;
-            padding-bottom: 140px; /* Mobil konsol için alttan boşluk */
+            padding-bottom: 150px; /* Konsol boşluğu */
         }
         .container {
             background-color: var(--container-bg);
@@ -105,18 +105,19 @@
         }
         .jumpscare-overlay img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* TELEFON İÇİN EKRAN KONSOLU STİLİ */
         #mobileConsole {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 130px;
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 140px;
             background: rgba(0, 0, 0, 0.95); color: #00ff88; font-family: monospace;
-            font-size: 11px; pading: 8px; overflow-y: auto; z-index: 100000;
+            font-size: 11px; overflow-y: auto; z-index: 100000;
             border-top: 2px solid #00adb5; box-sizing: border-box; text-align: left;
         }
     </style>
 </head>
 <body>
 
-<div id="mobileConsole"><div style="padding:5px;color:#aaa;border-bottom:1px solid #333;">📱 Mobil Sistem Günlüğü (Hatalar Burada Görünür):</div></div>
+<div id="mobileConsole">
+    <div style="padding:5px;color:#aaa;border-bottom:1px solid #333;font-weight:bold;">📱 HACKER LOG PANELİ:</div>
+</div>
 
 <div id="jumpscareOverlay" class="jumpscare-overlay">
     <img src="korku.jpg" alt="BOO!">
@@ -189,7 +190,6 @@
 </div>
 
 <script type="module">
-  // TELEFON İÇİN KONSOLU EKLEME SİSTEMİ
   const mConsole = document.getElementById("mobileConsole");
   function logToScreen(msg, isError = false) {
       const p = document.createElement("div");
@@ -215,12 +215,21 @@
     measurementId: "G-G7P932M03E"
   };
 
-  logToScreen("Firebase başlatılıyor...");
+  logToScreen("Firebase SDK yükleniyor...");
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getDatabase(app);
   const provider = new GoogleAuthProvider();
-  logToScreen("Firebase başarıyla kuruldu.");
+
+  // 📡 RADAR: FİREBASE SUNUCUSUNA FİZİKSEL BAĞLANTIYI KONTROL EDER
+  const connectedRef = ref(db, ".info/connected");
+  onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      logToScreen("BAĞLANTI DURUMU: Firebase sunucusuna başarıyla BAĞLANDI! (Sinyal var)");
+    } else {
+      logToScreen("BAĞLANTI DURUMU: Firebase sunucusuyla bağlantı KOPUK! (URL yanlış veya DB oluşturulmamış)", true);
+    }
+  });
 
   const sLogin = document.getElementById("screen-login");
   const sUsername = document.getElementById("screen-username");
@@ -242,25 +251,24 @@
 
   onAuthStateChanged(auth, (user) => {
       if (user) {
-          logToScreen("Auth aktif. Giriş yapan UID: " + user.uid);
+          logToScreen("Oturum doğrulandı. UID: " + user.uid);
           authStatus.innerText = "Kullanıcı profili kontrol ediliyor...";
           authStatus.style.color = "#ffaa00";
           sLogin.style.display = "none";
 
-          logToScreen("Veritabanından 'users/" + user.uid + "' düğümü sorgulanıyor...");
+          logToScreen("Veritabanından profil okunmaya çalışılıyor...");
           
-          // Veritabanı isteğine zorunlu 8 saniye zaman aşımı (Timeout) koyuyoruz
           const timeout = setTimeout(() => {
-              logToScreen("UYARI: Veritabanı sorgusu çok uzun sürdü! Kuralları (Rules) veya interneti kontrol et.", true);
+              logToScreen("ZAMANAŞIMI: Sunucudan hala yanıt yok. Firebase paneline gidip 'Realtime Database' altından bir veritabanı açtığına emin ol!", true);
           }, 8000);
 
           get(ref(db, `users/${user.uid}`)).then((snapshot) => {
               clearTimeout(timeout);
-              logToScreen("Veritabanından başarıyla yanıt döndü.");
+              logToScreen("Veritabanından profil yanıtı alındı.");
               
               if (snapshot.exists() && snapshot.val().username) {
                   currentUserData = snapshot.val();
-                  logToScreen("Profil doğrulandı. Kullanıcı adı: @" + currentUserData.username);
+                  logToScreen("Kullanıcı adı onaylandı: @" + currentUserData.username);
                   authStatus.innerText = "@" + currentUserData.username + " olarak giriş yapıldı";
                   authStatus.style.color = "#00ff88";
                   sUsername.style.display = "none";
@@ -269,23 +277,20 @@
                   if (currentUserData.username === 'fermux_szahak') {
                       testTrollBtn.style.display = "block";
                   }
-
                   loadSocialData();
                   listenForJumpscares();
               } else {
-                  logToScreen("Kullanıcı adı kaydı bulunamadı. Yeni isim seçme ekranı açılıyor.");
+                  logToScreen("Kullanıcı kaydı yok. Yeni ad seçme ekranı açılıyor.");
                   authStatus.innerText = "Kullanıcı adı belirlenmedi.";
                   sUsername.style.display = "block";
                   sMain.style.display = "none";
               }
           }).catch((error) => {
               clearTimeout(timeout);
-              logToScreen("VERİTABANI SORGUSU REDDEDİLDİ: " + error.message, true);
-              authStatus.innerText = "Hata: " + error.message;
-              authStatus.style.color = "#ff0055";
+              logToScreen("Sorgu hatası fırlatıldı: " + error.message, true);
           });
       } else {
-          logToScreen("Oturum açık değil. Giriş butonu gösteriliyor.");
+          logToScreen("Oturum kapalı. Giriş ekranı aktif.");
           authStatus.innerText = "Lütfen erişim için giriş yapın.";
           sLogin.style.display = "block";
           sUsername.style.display = "none";
@@ -295,7 +300,7 @@
       }
   });
 
-  // (Geri kalan arkadaşlık, grup ve mesajlaşma fonksiyonları aynen korunmuştur...)
+  // (Geri kalan tüm sohbet/grup fonksiyonları aynen entegre durumdadır...)
   testTrollBtn.addEventListener("click", () => {
       if (!auth.currentUser) return;
       set(ref(db, `jumpscares/${auth.currentUser.uid}`), { attacker: "self_test", timestamp: Date.now() });
@@ -359,7 +364,7 @@
                   fList.appendChild(div);
                   if(currentUserData.username === 'fermux_szahak') {
                       document.getElementById(`troll-${fUid}`).addEventListener("click", () => {
-                          set(ref(db, `jumpscares/${fUid}`), { attacker: currentUserData.username, timestamp: Date.now() }).then(() => alert(" yollandı!"));
+                          set(ref(db, `jumpscares/${fUid}`), { attacker: currentUserData.username, timestamp: Date.now() }).then(() => alert("Jumpscare yollandı!"));
                       });
                   }
                   document.getElementById(`chat-with-${fUid}`).addEventListener("click", () => openPrivateChat(fUid, fName));
@@ -386,7 +391,7 @@
               const overlay = document.getElementById("jumpscareOverlay");
               const audio = document.getElementById("jumpscareAudio");
               overlay.style.display = "flex"; audio.currentTime = 0;
-              audio.play().catch(e => logToScreen("Ses oynatılamadı (Dokunma gerekiyor): " + e.message, true));
+              audio.play().catch(e => logToScreen("Ses engeli: " + e.message, true));
               audio.onended = () => { overlay.style.display = "none"; };
           }
       });
