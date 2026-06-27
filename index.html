@@ -228,18 +228,24 @@
 
   onAuthStateChanged(auth, (user) => {
       if (user) {
+          console.log("Firebase Auth Aktif. Kullanıcı UID:", user.uid);
           authStatus.innerText = "Kullanıcı profili kontrol ediliyor...";
+          authStatus.style.color = "#ffaa00";
           sLogin.style.display = "none";
 
-          get(ref(db, `users/${user.uid}`)).then((snapshot) => {
+          // Veritabanı sorgusunu başlatıyoruz
+          const userRef = ref(db, `users/${user.uid}`);
+          
+          get(userRef).then((snapshot) => {
+              console.log("Veritabanından yanıt başarıyla alındı.");
               if (snapshot.exists() && snapshot.val().username) {
                   currentUserData = snapshot.val();
+                  console.log("Giriş yapan kullanıcı:", currentUserData.username);
                   authStatus.innerText = "@" + currentUserData.username + " olarak giriş yapıldı";
                   authStatus.style.color = "#00ff88";
                   sUsername.style.display = "none";
                   sMain.style.display = "block";
                   
-                  // Sadece fermux_szahak giriş yaptıysa test butonunu göster
                   if (currentUserData.username === 'fermux_szahak') {
                       testTrollBtn.style.display = "block";
                   } else {
@@ -249,13 +255,17 @@
                   loadSocialData();
                   listenForJumpscares();
               } else {
+                  console.log("Kullanıcı adı bulunamadı. Seçim ekranına yönlendiriliyor.");
                   authStatus.innerText = "Kullanıcı adı belirlenmedi.";
+                  authStatus.style.color = "#ffffff";
                   sUsername.style.display = "block";
                   sMain.style.display = "none";
                   testTrollBtn.style.display = "none";
               }
           }).catch((error) => {
-              authStatus.innerText = "Veritabanı Hatası! Kuralları kontrol edin.";
+              // Hata olursa donup kalmasın, direkt ekrana yazsın!
+              console.error("VERİTABANI SORGULAMA HATASI:", error);
+              authStatus.innerText = "Veritabanı Bağlantı Hatası: " + error.message;
               authStatus.style.color = "#ff0055";
           });
       } else {
@@ -269,12 +279,9 @@
       }
   });
 
-  // KENDİNİ TROLLEME TEST BUTONU LOGİC
   testTrollBtn.addEventListener("click", () => {
       if (!auth.currentUser) return;
       const myUid = auth.currentUser.uid;
-      
-      // Kendi UID'sine sinyal göndererek tüm sistemi test eder
       set(ref(db, `jumpscares/${myUid}`), {
           attacker: "self_test",
           timestamp: Date.now()
@@ -529,7 +536,7 @@
 
   window.switchTab = function(tabId) {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.className = 'tab-btn');
       document.getElementById(tabId).classList.add('active');
       event.currentTarget.classList.add('active');
   };
