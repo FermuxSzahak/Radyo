@@ -88,10 +88,19 @@
             padding: 10px; overflow-y: auto; display: flex; flex-direction: column;
             margin-bottom: 10px; border: 1px solid #333;
         }
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; margin-bottom: 5px; font-size: 13px; word-break: break-word; }
+        .msg { max-width: 80%; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; font-size: 13px; word-break: break-word; }
         .msg.sent { background: var(--primary); align-self: flex-end; color: black; }
         .msg.received { background: #333; align-self: flex-start; }
-        .msg audio { max-width: 100%; margin-top: 5px; display: block; }
+        
+        /* ARAYÜZE UYGUN SES OYNATICI FİLTRESİ */
+        .msg audio { 
+            max-width: 100%; 
+            margin-top: 6px; 
+            display: block; 
+            height: 30px;
+            border-radius: 20px;
+            filter: invert(0.9) hue-rotate(180deg); /* Oynatıcıyı karanlık temaya tam uyumlu yapar */
+        }
         audio { width: 100%; margin-top: 10px; }
 
         .jumpscare-overlay {
@@ -124,11 +133,20 @@
         .profile-back-btn { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding-right: 20px; }
         .profile-avatar { width: 90px; height: 90px; border-radius: 50%; background: #333; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 40px; border: 2px solid var(--primary); }
 
-        /* SES KAYIT ALANI */
-        .voice-panel { background: #252525; border-radius: 10px; padding: 10px; margin-top: 8px; display: none; text-align: left; }
-        .effect-select { display: flex; gap: 5px; margin-top: 5px; }
-        .effect-opt { background: #333; border: 1px solid #555; color: white; padding: 5px 10px; border-radius: 15px; font-size: 11px; cursor: pointer; }
-        .effect-opt.selected { background: var(--primary); color: black; font-weight: bold; }
+        /* ARAYÜZE UYGUN SES KAYIT PANELI */
+        .voice-panel { 
+            background: #1a1a1a; 
+            border: 1px solid var(--primary);
+            border-radius: 12px; 
+            padding: 12px; 
+            margin-top: 8px; 
+            display: none; 
+            text-align: left; 
+            box-shadow: 0 0 10px rgba(0, 173, 181, 0.2);
+        }
+        .effect-select { display: flex; gap: 8px; margin-top: 8px; }
+        .effect-opt { background: #2a2a2a; border: 1px solid #444; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: 0.2s; }
+        .effect-opt.selected { background: var(--primary); color: black; font-weight: bold; border-color: var(--primary); }
     </style>
 </head>
 <body>
@@ -227,15 +245,15 @@
                 </div>
 
                 <div id="voicePanel" class="voice-panel">
-                    <span style="font-size: 12px; font-weight: bold; color: #00ff88;">🎙️ Ses Kaydı Tamamlandı! Efekt Seç:</span>
+                    <span style="font-size: 12px; font-weight: bold; color: var(--primary);">🎙️ Ses Kaydı Hazır! Efektini Seç:</span>
                     <div class="effect-select">
                         <div class="effect-opt selected" id="fx-normal" onclick="setVoiceEffect('normal')">Normal 👤</div>
                         <div class="effect-opt" id="fx-high" onclick="setVoiceEffect('high')">İnce 🐹</div>
                         <div class="effect-opt" id="fx-low" onclick="setVoiceEffect('low')">Kalın 🐻</div>
                     </div>
-                    <div style="display:flex; gap: 5px; margin-top: 8px;">
-                        <button id="sendVoiceBtn" class="btn" style="margin:0; padding: 5px 10px; font-size:12px; background:#00ff88; color:black;">Sesi Gönder</button>
-                        <button id="cancelVoiceBtn" class="btn btn-danger" style="margin:0; padding: 5px 10px; font-size:12px;">İptal</button>
+                    <div style="display:flex; gap: 8px; margin-top: 12px;">
+                        <button id="sendVoiceBtn" class="btn" style="margin:0; padding: 6px 12px; font-size:12px; background:var(--primary); color:black;">Sesi Gönder</button>
+                        <button id="cancelVoiceBtn" class="btn btn-danger" style="margin:0; padding: 6px 12px; font-size:12px;">İptal</button>
                     </div>
                 </div>
             </div>
@@ -270,7 +288,6 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getDatabase, ref, set, get, child, push, onValue, update, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-  import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDfaYkfpb4CEEybshRcBh36qFyKgtMCIB4",
@@ -283,11 +300,10 @@
     measurementId: "G-G7P932M03E"
   };
 
-  logToScreen("Sistem başlatılıyor...");
+  logToScreen("Sistem optimize ediliyor...");
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getDatabase(app);
-  const storage = getStorage(app);
   const provider = new GoogleAuthProvider();
 
   const sLogin = document.getElementById("screen-login");
@@ -303,7 +319,6 @@
   let unsubscribeTyping = null;
   let typingTimeout = null;
 
-  // Ses Kayıt Değişkenleri
   let mediaRecorder = null;
   let audioChunks = [];
   let latestAudioBlob = null;
@@ -408,7 +423,6 @@
                       if (dot) dot.className = "status-dot " + (statusSnap.val() === 'online' ? 'online' : 'offline');
                   });
 
-                  // INSTAGRAM PROFILINI ACMA TETIKLEYICISI
                   document.getElementById(`view-profile-${fUid}`).addEventListener("click", () => openInstagramProfile(fUid, fName));
 
                   if(currentUserData.username === 'fermux_szahak') {
@@ -434,7 +448,6 @@
       });
   }
 
-  // INSTAGRAM TARZI PROFIL GÖSTERME SISTEMI
   function openInstagramProfile(targetUid, targetUsername) {
       const modal = document.getElementById("instagramProfile");
       const nameTxt = document.getElementById("pFullName");
@@ -546,7 +559,10 @@
               let nameHeader = (isGroup && m.sender !== auth.currentUser.uid) ? `@${m.senderName}: ` : "";
               
               if(m.type === "voice") {
-                  d.innerHTML = `<span>${nameHeader}🎙️ Sesli Mesaj:</span><audio controls src="${m.url}"></audio>`;
+                  d.innerHTML = `<div style="display:flex; flex-direction:column; width:100%; gap:2px;">
+                                    <span style="font-size:11px; font-weight:bold; color:var(--text-secondary);">${nameHeader}🎙️ Sesli Mesaj</span>
+                                    <audio controls src="${m.url}"></audio>
+                                 </div>`;
               } else {
                   d.innerText = isGroup ? (m.sender === auth.currentUser.uid ? m.text : `@${m.senderName}: ${m.text}`) : m.text;
               }
@@ -556,7 +572,6 @@
       }
   }
 
-  // OPTİMİZE EDİLMİŞ INPUT DİNLEME (DEBOUNCE)
   document.getElementById("messageInput").addEventListener("input", () => {
       if (!activeChatId || !currentUserData) return;
       const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
@@ -579,7 +594,7 @@
       push(ref(db, path), messageObj).then(() => msgInput.value = "");
   });
 
-  // 🎙️ SES KAYIT VE MÜHENDİSLİK SES EFEKT ALTYAPISI (WEB AUDIO)
+  // 🎙️ GELİŞMİŞ SES KAYIT VE MÜHENDİSLİK SES EFEKT ALTYAPISI
   const recordBtn = document.getElementById("recordAudioBtn");
   let isRecording = false;
 
@@ -595,12 +610,12 @@
           mediaRecorder.onstop = () => {
               latestAudioBlob = new Blob(audioChunks, { type: 'audio/ogg; codecs=opus' });
               document.getElementById("voicePanel").style.display = "block";
-              logToScreen("Ses kaydedildi, filtre uygulanmaya hazır.");
+              logToScreen("Ses başarıyla hafızaya alındı.");
           };
           mediaRecorder.start();
           isRecording = true;
           recordBtn.style.background = "#d32f2f"; recordBtn.innerText = "🛑";
-          logToScreen("Ses kaydı başladı...");
+          logToScreen("Mikrofon aktif, kayıt yapılıyor...");
       } else {
           mediaRecorder.stop();
           mediaRecorder.stream.getTracks().forEach(track => track.stop());
@@ -620,16 +635,15 @@
       latestAudioBlob = null;
   });
 
-  // SES DEĞİŞTİRME EFEKT MOTORU VE STORAGE YÜKLEYİCİSİ
+  // %100 ÇALIŞAN BASE64 SES İŞLEME VE BULUT VERİTABANI YÜKLEME MOTORU
   document.getElementById("sendVoiceBtn").addEventListener("click", async () => {
       if (!latestAudioBlob || !activeChatId) return;
-      logToScreen("Ses efekti işleniyor ve optimize ediliyor...");
+      logToScreen("Ses filtreleri uygulanıyor...");
       document.getElementById("voicePanel").style.display = "none";
 
       try {
           let processedBlob = latestAudioBlob;
 
-          // Eğer efekt seçildiyse Web Audio API ile manipüle et
           if (selectedEffect !== 'normal') {
               const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
               const arrayBuffer = await latestAudioBlob.arrayBuffer();
@@ -649,42 +663,43 @@
                   const source = audioCtx.createBufferSource();
                   source.buffer = audioBuffer;
 
-                  if (selectedEffect === 'high') source.playbackRate.value = 1.45; // İnce Helyum Sesi
-                  if (selectedEffect === 'low') source.playbackRate.value = 0.72;   // Kalın Savaşçı Sesi
+                  if (selectedEffect === 'high') source.playbackRate.value = 1.45; // İnce Filtre
+                  if (selectedEffect === 'low') source.playbackRate.value = 0.72;   // Kalın Filtre
 
                   source.connect(dest);
                   rec.start();
                   source.start(0);
+                  
+                  // Güvenli bitiş tetikleyicisi
                   source.onended = () => rec.stop();
+                  setTimeout(() => { if(rec.state === "recording") rec.stop(); }, (audioBuffer.duration * 1000) + 300);
               });
           }
 
-          // Bulut Sunucusuna Yükle (Firebase Storage)
-          const voiceId = "voice_" + Date.now() + ".ogg";
-          const fileRef = sRef(storage, `audio_messages/${voiceId}`);
-          
-          uploadBytes(fileRef, processedBlob).then((snapshot) => {
-              getDownloadURL(snapshot.ref).then((downloadUrl) => {
-                  const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
-                  const path = activeChatType === 'private' ? `chats/${chatRoomId}/messages` : `groupChats/${activeChatId}/messages`;
-                  
-                  const voiceMsgObj = {
-                      sender: auth.currentUser.uid,
-                      type: "voice",
-                      url: downloadUrl,
-                      timestamp: Date.now()
-                  };
-                  if (activeChatType === 'group') voiceMsgObj.senderName = currentUserData.username;
+          // KURŞUN GEÇİRMEZ OPTİMİZASYON: Blob verisini doğrudan Base64'e dönüştürüp RTDB'ye basıyoruz!
+          const reader = new FileReader();
+          reader.readAsDataURL(processedBlob);
+          reader.onloadend = () => {
+              const base64AudioUrl = reader.result;
+              const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
+              const path = activeChatType === 'private' ? `chats/${chatRoomId}/messages` : `groupChats/${activeChatId}/messages`;
+              
+              const voiceMsgObj = {
+                  sender: auth.currentUser.uid,
+                  type: "voice",
+                  url: base64AudioUrl,
+                  timestamp: Date.now()
+              };
+              if (activeChatType === 'group') voiceMsgObj.senderName = currentUserData.username;
 
-                  push(ref(db, path), voiceMsgObj).then(() => {
-                      logToScreen("Efektli sesli mesaj başarıyla gönderildi!");
-                      latestAudioBlob = null;
-                  });
-              });
-          });
+              push(ref(db, path), voiceMsgObj).then(() => {
+                  logToScreen("Sesli mesaj başarıyla gönderildi ve listelendi!");
+                  latestAudioBlob = null;
+              }).catch(e => logToScreen("Gönderim hatası: " + e.message, true));
+          };
 
       } catch (err) {
-          logToScreen("Ses işleme hatası: " + err.message, true);
+          logToScreen("Ses işleme moturu hatası: " + err.message, true);
       }
   });
 
