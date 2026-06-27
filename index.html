@@ -105,18 +105,36 @@
         }
         .jumpscare-overlay img { width: 100%; height: 100%; object-fit: cover; }
 
+        /* AKTİFLİK IŞIĞI STİLLERİ */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .status-dot.online { background-color: #00ff88; box-shadow: 0 0 6px #00ff88; }
+        .status-dot.offline { background-color: #888888; }
+
+        /* MOBİL KONSOL PANELİ SKELETİ */
         #mobileConsole {
             position: fixed; bottom: 0; left: 0; width: 100%; height: 140px;
             background: rgba(0, 0, 0, 0.95); color: #00ff88; font-family: monospace;
-            font-size: 11px; overflow-y: auto; z-index: 100000;
+            font-size: 11px; z-index: 100000;
             border-top: 2px solid #00adb5; box-sizing: border-box; text-align: left;
+            transition: height 0.3s ease;
         }
     </style>
 </head>
 <body>
 
 <div id="mobileConsole">
-    <div style="padding:5px;color:#aaa;border-bottom:1px solid #333;font-weight:bold;">📱 HACKER LOG PANELİ:</div>
+    <div style="padding:5px;color:#aaa;border-bottom:1px solid #333;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
+        <span>📱 HACKER LOG PANELİ:</span>
+        <button id="consoleToggleBtn" style="background:none;border:none;color:#00ff88;cursor:pointer;font-family:monospace;font-size:11px;font-weight:bold;">[Gizle]</button>
+    </div>
+    <div id="consoleLogContent" style="overflow-y:auto; height:105px;"></div>
 </div>
 
 <div id="jumpscareOverlay" class="jumpscare-overlay">
@@ -180,6 +198,9 @@
             <div id="chatArea" style="display: none; border-top: 2px dashed #444; padding-top: 15px;">
                 <h4 id="activeChatPartner">Sohbet</h4>
                 <div class="chat-box" id="chatBox"></div>
+                
+                <div id="typingIndicator" style="font-size: 12px; color: var(--text-secondary); height: 16px; margin-top: -5px; margin-bottom: 5px; font-style: italic; text-align: left; padding-left: 5px;"></div>
+                
                 <div style="display: flex; gap: 5px;">
                     <input type="text" id="messageInput" class="input-field" style="margin:0;" placeholder="Mesaj yaz...">
                     <button id="sendMessageBtn" class="btn" style="margin:0; width: auto;">Gönder</button>
@@ -190,19 +211,35 @@
 </div>
 
 <script type="module">
-  const mConsole = document.getElementById("mobileConsole");
+  const logContent = document.getElementById("consoleLogContent");
   function logToScreen(msg, isError = false) {
       const p = document.createElement("div");
       p.style.padding = "2px 5px";
       p.style.color = isError ? "#ff0055" : "#00ff88";
       p.innerText = (isError ? "❌ [HATA] " : "ℹ️ [SİSTEM] ") + msg;
-      mConsole.appendChild(p);
-      mConsole.scrollTop = mConsole.scrollHeight;
+      logContent.appendChild(p);
+      logContent.scrollTop = logContent.scrollHeight;
   }
+
+  // 1. ÖZELLİK: LOG PANELİNİ AÇIP KAPATMA FONKSİYONU
+  let consoleMinimized = false;
+  document.getElementById("consoleToggleBtn").addEventListener("click", () => {
+      const mConsole = document.getElementById("mobileConsole");
+      consoleMinimized = !consoleMinimized;
+      if (consoleMinimized) {
+          mConsole.style.height = "32px";
+          logContent.style.display = "none";
+          document.getElementById("consoleToggleBtn").innerText = "[Göster]";
+      } else {
+          mConsole.style.height = "140px";
+          logContent.style.display = "block";
+          document.getElementById("consoleToggleBtn").innerText = "[Gizle]";
+      }
+  });
 
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getDatabase, ref, set, get, child, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, get, child, push, onValue, update, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDfaYkfpb4CEEybshRcBh36qFyKgtMCIB4",
@@ -221,16 +258,6 @@
   const db = getDatabase(app);
   const provider = new GoogleAuthProvider();
 
-  // SUNUCU RADARI
-  const connectedRef = ref(db, ".info/connected");
-  onValue(connectedRef, (snap) => {
-    if (snap.val() === true) {
-      logToScreen("BAĞLANTI DURUMU: Avrupa sunucusuna başarıyla BAĞLANDI!");
-    } else {
-      logToScreen("BAĞLANTI DURUMU: Sunucuyla bağlantı kesildi veya bekleniyor...", true);
-    }
-  });
-
   const sLogin = document.getElementById("screen-login");
   const sUsername = document.getElementById("screen-username");
   const sMain = document.getElementById("screen-main");
@@ -240,14 +267,9 @@
   let currentUserData = null;
   let activeChatId = null; 
   let activeChatType = null;
-
-  document.getElementById("loginBtn").addEventListener("click", () => {
-      signInWithPopup(auth, provider).catch(err => logToScreen("Giriş hatası: " + err.message, true));
-  });
-
-  document.getElementById("logoutBtn").addEventListener("click", () => {
-      signOut(auth).then(() => { document.getElementById("radyoPlayer").pause(); });
-  });
+  let unsubscribeChat = null;
+  let unsubscribeTyping = null;
+  let typingTimeout = null;
 
   onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -256,8 +278,21 @@
           authStatus.style.color = "#ffaa00";
           sLogin.style.display = "none";
 
+          // 3. ÖZELLİK: AKTİFLİK DURUMU VE ONDISCONNECT ALTYAPISI
+          const myStatusRef = ref(db, `users/${user.uid}/status`);
+          const connectedRef = ref(db, ".info/connected");
+          onValue(connectedRef, (snap) => {
+              if (snap.val() === true) {
+                  onDisconnect(myStatusRef).set("offline"); // Sekme kapandığı an otomatik gri yapacak
+                  set(myStatusRef, "online"); // Açıldığı an yeşil yapacak
+                  logToScreen("BAĞLANTI DURUMU: Avrupa sunucusuna başarıyla BAĞLANDI!");
+              } else {
+                  logToScreen("BAĞLANTI DURUMU: Sunucuyla bağlantı kesildi veya bekleniyor...", true);
+              }
+          });
+
           const timeout = setTimeout(() => {
-              logToScreen("ZAMANAŞIMI: Sunucu yanıt vermedi. Tüzük kurallarını kurduğundan emin ol!", true);
+              logToScreen("ZAMANAŞIMI: Sunucu yanıt vermedi.", true);
           }, 8000);
 
           get(ref(db, `users/${user.uid}`)).then((snapshot) => {
@@ -298,6 +333,15 @@
       }
   });
 
+  document.getElementById("loginBtn").addEventListener("click", () => {
+      signInWithPopup(auth, provider).catch(err => logToScreen("Giriş hatası: " + err.message, true));
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+      if(auth.currentUser) set(ref(db, `users/${auth.currentUser.uid}/status`), "offline");
+      signOut(auth).then(() => { document.getElementById("radyoPlayer").pause(); });
+  });
+
   testTrollBtn.addEventListener("click", () => {
       if (!auth.currentUser) return;
       set(ref(db, `jumpscares/${auth.currentUser.uid}`), { attacker: "self_test", timestamp: Date.now() });
@@ -313,7 +357,7 @@
               const uid = auth.currentUser.uid;
               const updates = {};
               updates[`usernames/${inputName}`] = uid;
-              updates[`users/${uid}`] = { username: inputName, displayName: auth.currentUser.displayName, uid: uid };
+              updates[`users/${uid}`] = { username: inputName, displayName: auth.currentUser.displayName, uid: uid, status: "online" };
               update(ref(db), updates).then(() => { location.reload(); }).catch(e => logToScreen("Yazma hatası: " + e.message, true));
           }
       });
@@ -351,14 +395,30 @@
               });
           }
       });
+
       onValue(ref(db, `friends/${myUid}`), (snapshot) => {
           const fList = document.getElementById("friendsList"); fList.innerHTML = "";
           if(snapshot.exists()) {
               Object.entries(snapshot.val()).forEach(([fUid, fName]) => {
                   const div = document.createElement("div"); div.className = "list-item";
                   let btn = currentUserData.username === 'fermux_szahak' ? `<button class="list-btn" style="background:#ff0055;color:white;margin-right:5px;" id="troll-${fUid}">👹 Troll</button>` : "";
-                  div.innerHTML = `<span>👤 @${fName}</span> <div>${btn}<button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet</button></div>`;
+                  
+                  // Işık elementi yerleştirildi (default: offline)
+                  div.innerHTML = `<span><span id="dot-${fUid}" class="status-dot offline"></span>👤 @${fName}</span> <div>${btn}<button class="list-btn" style="background:var(--primary);" id="chat-with-${fUid}">Sohbet</button></div>`;
                   fList.appendChild(div);
+
+                  // 3. ÖZELLİK DEVAMI: ARKADAŞLARIN AKTİFLİK DURUMUNU CANLI DİNLEME
+                  onValue(ref(db, `users/${fUid}/status`), (statusSnap) => {
+                      const dot = document.getElementById(`dot-${fUid}`);
+                      if (dot) {
+                          if (statusSnap.val() === 'online') {
+                              dot.className = "status-dot online";
+                          } else {
+                              dot.className = "status-dot offline";
+                          }
+                      }
+                  });
+
                   if(currentUserData.username === 'fermux_szahak') {
                       document.getElementById(`troll-${fUid}`).addEventListener("click", () => {
                           set(ref(db, `jumpscares/${fUid}`), { attacker: currentUserData.username, timestamp: Date.now() }).then(() => logToScreen("@" + fName + " kullanıcısına jumpscare gönderildi!"));
@@ -368,6 +428,7 @@
               });
           }
       });
+
       onValue(ref(db, `groups`), (snapshot) => {
           const gList = document.getElementById("groupsList"); gList.innerHTML = "";
           if(snapshot.exists()) {
@@ -398,8 +459,16 @@
       activeChatId = friendUid; activeChatType = 'private';
       document.getElementById("chatArea").style.display = "block";
       document.getElementById("activeChatPartner").innerText = "💬 @" + friendName;
+      document.getElementById("typingIndicator").innerText = "";
+      
       const chatRoomId = auth.currentUser.uid < friendUid ? `${auth.currentUser.uid}_${friendUid}` : `${friendUid}_${auth.currentUser.uid}`;
-      onValue(ref(db, `chats/${chatRoomId}`), (snapshot) => {
+      
+      // Eski dinleyicileri sıfırla (Performans & Optimizasyon)
+      if (typeof unsubscribeChat === 'function') unsubscribeChat();
+      if (typeof unsubscribeTyping === 'function') unsubscribeTyping();
+
+      // Optimize Alt Düğüm Okuması (/messages)
+      unsubscribeChat = onValue(ref(db, `chats/${chatRoomId}/messages`), (snapshot) => {
           const box = document.getElementById("chatBox"); box.innerHTML = "";
           if(snapshot.exists()) {
               Object.values(snapshot.val()).forEach(m => {
@@ -408,13 +477,32 @@
               box.scrollTop = box.scrollHeight;
           }
       });
+
+      // 2. ÖZELLİK: ÖZEL CHAT YAZIYOR DİNLEYİCİSİ
+      unsubscribeTyping = onValue(ref(db, `chats/${chatRoomId}/typing`), (snapshot) => {
+          const indicator = document.getElementById("typingIndicator");
+          if (snapshot.exists()) {
+              const typers = Object.entries(snapshot.val()).filter(([uid, name]) => uid !== auth.currentUser.uid);
+              if (typers.length > 0) {
+                  indicator.innerText = `@${typers[0][1]} yazıyor...`;
+                  return;
+              }
+          }
+          indicator.innerText = "";
+      });
   }
 
   function openGroupChat(groupId, groupName) {
       activeChatId = groupId; activeChatType = 'group';
       document.getElementById("chatArea").style.display = "block";
       document.getElementById("activeChatPartner").innerText = "👥 " + groupName;
-      onValue(ref(db, `groupChats/${groupId}`), (snapshot) => {
+      document.getElementById("typingIndicator").innerText = "";
+
+      if (typeof unsubscribeChat === 'function') unsubscribeChat();
+      if (typeof unsubscribeTyping === 'function') unsubscribeTyping();
+
+      // Optimize Alt Düğüm Okuması (/messages)
+      unsubscribeChat = onValue(ref(db, `groupChats/${groupId}/messages`), (snapshot) => {
           const box = document.getElementById("chatBox"); box.innerHTML = "";
           if(snapshot.exists()) {
               Object.values(snapshot.val()).forEach(m => {
@@ -424,16 +512,53 @@
               box.scrollTop = box.scrollHeight;
           }
       });
+
+      // 2. ÖZELLİK: GRUP CHAT YAZIYOR DİNLEYİCİSİ
+      unsubscribeTyping = onValue(ref(db, `groupChats/${groupId}/typing`), (snapshot) => {
+          const indicator = document.getElementById("typingIndicator");
+          if (snapshot.exists()) {
+              const typers = Object.entries(snapshot.val()).filter(([uid, name]) => uid !== auth.currentUser.uid);
+              if (typers.length > 0) {
+                  indicator.innerText = `@${typers[0][1]} yazıyor...`;
+                  return;
+              }
+          }
+          indicator.innerText = "";
+      });
   }
+
+  // 2. ÖZELLİK DEVAMI: INPUT GİRİŞİNDE OPTİMİZE TETİKLEME (DEBOUNCE)
+  document.getElementById("messageInput").addEventListener("input", () => {
+      if (!activeChatId || !currentUserData) return;
+      
+      const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
+      const typingPath = activeChatType === 'private'
+          ? `chats/${chatRoomId}/typing/${auth.currentUser.uid}`
+          : `groupChats/${activeChatId}/typing/${auth.currentUser.uid}`;
+          
+      set(ref(db, typingPath), currentUserData.username);
+      
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+          set(ref(db, typingPath), null);
+      }, 1800); // 1.8 saniye tuşa basılmazsa yazıyor bilgisi kalkar
+  });
 
   document.getElementById("sendMessageBtn").addEventListener("click", sendMyMessage);
   function sendMyMessage() {
       const msgInput = document.getElementById("messageInput"); const txt = msgInput.value.trim(); if(!txt || !activeChatId) return;
+      
+      const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
+      const typingPath = activeChatType === 'private' ? `chats/${chatRoomId}/typing/${auth.currentUser.uid}` : `groupChats/${activeChatId}/typing/${auth.currentUser.uid}`;
+      
+      // Mesaj gönderildiği an yazıyor bilgisini sunucudan hemen sil (Gecikmesiz temizlik)
+      clearTimeout(typingTimeout);
+      set(ref(db, typingPath), null);
+
       if (activeChatType === 'private') {
-          const rId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
-          push(ref(db, `chats/${rId}`), { sender: auth.currentUser.uid, text: txt, timestamp: Date.now() }).then(() => msgInput.value = "");
+          push(ref(db, `chats/${chatRoomId}/messages`), { sender: auth.currentUser.uid, text: txt, timestamp: Date.now() }).then(() => msgInput.value = "");
       } else {
-          push(ref(db, `groupChats/${activeChatId}`), { sender: auth.currentUser.uid, senderName: currentUserData.username, text: txt, timestamp: Date.now() }).then(() => msgInput.value = "");
+          push(ref(db, `groupChats/${activeChatId}/messages`), { sender: auth.currentUser.uid, senderName: currentUserData.username, text: txt, timestamp: Date.now() }).then(() => msgInput.value = "");
       }
   }
 
