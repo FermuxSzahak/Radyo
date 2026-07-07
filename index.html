@@ -26,6 +26,7 @@
             min-height: 100vh;
             box-sizing: border-box;
             padding-bottom: 150px;
+            position: relative;
         }
         .container {
             background-color: var(--container-bg);
@@ -36,6 +37,7 @@
             max-width: 450px;
             text-align: center;
             box-sizing: border-box;
+            position: relative;
         }
         img.logo {
             width: 120px;
@@ -92,14 +94,13 @@
         .msg.sent { background: var(--primary); align-self: flex-end; color: black; }
         .msg.received { background: #333; align-self: flex-start; }
         
-        /* ARAYÜZE UYGUN SES OYNATICI FİLTRESİ */
         .msg audio { 
             max-width: 100%; 
             margin-top: 6px; 
             display: block; 
             height: 30px;
             border-radius: 20px;
-            filter: invert(0.9) hue-rotate(180deg); /* Oynatıcıyı karanlık temaya tam uyumlu yapar */
+            filter: invert(0.9) hue-rotate(180deg);
         }
         audio { width: 100%; margin-top: 10px; }
 
@@ -123,7 +124,6 @@
             transition: height 0.3s ease;
         }
 
-        /* INSTAGRAM TARZI PROFİL MODALI */
         .profile-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(18, 18, 18, 0.98); z-index: 100005;
@@ -133,7 +133,6 @@
         .profile-back-btn { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding-right: 20px; }
         .profile-avatar { width: 90px; height: 90px; border-radius: 50%; background: #333; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 40px; border: 2px solid var(--primary); }
 
-        /* ARAYÜZE UYGUN SES KAYIT PANELI */
         .voice-panel { 
             background: #1a1a1a; 
             border: 1px solid var(--primary);
@@ -147,9 +146,87 @@
         .effect-select { display: flex; gap: 8px; margin-top: 8px; }
         .effect-opt { background: #2a2a2a; border: 1px solid #444; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: 0.2s; }
         .effect-opt.selected { background: var(--primary); color: black; font-weight: bold; border-color: var(--primary); }
+
+        /* LAZ ZİYA ÖZEL VİDEO SİSTEMİ CSS */
+        .special-video-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(45deg, #ffaa00, #ff5500);
+            color: black;
+            border: none;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+            z-index: 10;
+            transition: transform 0.2s;
+        }
+        .special-video-btn:hover { transform: scale(1.05); }
+
+        .video-popup-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 100100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .video-popup-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .video-popup-content {
+            background: #1a1a1a;
+            border: 2px solid #ffaa00;
+            border-radius: 15px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            position: relative;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255, 170, 0, 0.3);
+        }
+        .video-popup-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            color: #ffaa00;
+            cursor: pointer;
+            font-weight: bold;
+            user-select: none;
+        }
+        .video-popup-close:hover { color: white; }
+        .video-popup-content h3 {
+            margin-top: 10px;
+            margin-bottom: 15px;
+            color: #ffaa00;
+            font-size: 16px;
+        }
+        .video-popup-content video {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: black;
+        }
     </style>
 </head>
 <body>
+
+<div id="videoPopupOverlay" class="video-popup-overlay">
+    <div class="video-popup-content">
+        <span id="closeVideoPopup" class="video-popup-close">&times;</span>
+        <h3>🎬 Laz Ziya Beyin Özel Videosunu Bir İzleyin!</h3>
+        <video id="specialVideoPlayer" controls src="lazziya.mp4"></video>
+    </div>
+</div>
 
 <div id="instagramProfile" class="profile-modal">
     <div class="profile-header">
@@ -180,6 +257,8 @@
 </div>
 
 <div class="container">
+    <button id="openVideoBtn" class="special-video-btn">👑 Laz Ziya Özel</button>
+
     <img src="logo.png" alt="Radyo Logo" class="logo">
     <h1 id="appTitle">Laz Ziya Ösuruk Show</h1>
     <p id="authStatus">Yükleniyor...</p>
@@ -271,6 +350,31 @@
       logContent.appendChild(p);
       logContent.scrollTop = logContent.scrollHeight;
   }
+
+  // LAZ ZİYA POPUP MANTIĞI VE TETİKLEYİCİLERİ
+  const videoOverlay = document.getElementById("videoPopupOverlay");
+  const closeVideoBtn = document.getElementById("closeVideoPopup");
+  const openVideoBtn = document.getElementById("openVideoBtn");
+  const specialVideoPlayer = document.getElementById("specialVideoPlayer");
+
+  // Sayfa yüklendiğinde anında otomatik açılış
+  window.addEventListener("DOMContentLoaded", () => {
+      videoOverlay.classList.add("active");
+      logToScreen("Giriş videosu aktif edildi.");
+  });
+
+  // Çarpı (X) butonuna basınca kapat ve videoyu durdur
+  closeVideoBtn.addEventListener("click", () => {
+      videoOverlay.classList.remove("active");
+      specialVideoPlayer.pause(); // Kapanınca video ses yapmasın diye durduruyoruz
+  });
+
+  // Sağ üst köşedeki butona basınca yeniden aç
+  openVideoBtn.addEventListener("click", () => {
+      videoOverlay.classList.add("active");
+      specialVideoPlayer.currentTime = 0; // Başa sarıp açıyoruz
+      specialVideoPlayer.play().catch(e => {});
+  });
 
   let consoleMinimized = false;
   document.getElementById("consoleToggleBtn").addEventListener("click", () => {
@@ -594,7 +698,6 @@
       push(ref(db, path), messageObj).then(() => msgInput.value = "");
   });
 
-  // 🎙️ GELİŞMİŞ SES KAYIT VE MÜHENDİSLİK SES EFEKT ALTYAPISI
   const recordBtn = document.getElementById("recordAudioBtn");
   let isRecording = false;
 
@@ -635,7 +738,6 @@
       latestAudioBlob = null;
   });
 
-  // %100 ÇALIŞAN BASE64 SES İŞLEME VE BULUT VERİTABANI YÜKLEME MOTORU
   document.getElementById("sendVoiceBtn").addEventListener("click", async () => {
       if (!latestAudioBlob || !activeChatId) return;
       logToScreen("Ses filtreleri uygulanıyor...");
@@ -663,20 +765,18 @@
                   const source = audioCtx.createBufferSource();
                   source.buffer = audioBuffer;
 
-                  if (selectedEffect === 'high') source.playbackRate.value = 1.45; // İnce Filtre
-                  if (selectedEffect === 'low') source.playbackRate.value = 0.72;   // Kalın Filtre
+                  if (selectedEffect === 'high') source.playbackRate.value = 1.45;
+                  if (selectedEffect === 'low') source.playbackRate.value = 0.72;
 
                   source.connect(dest);
                   rec.start();
                   source.start(0);
                   
-                  // Güvenli bitiş tetikleyicisi
                   source.onended = () => rec.stop();
                   setTimeout(() => { if(rec.state === "recording") rec.stop(); }, (audioBuffer.duration * 1000) + 300);
               });
           }
 
-          // KURŞUN GEÇİRMEZ OPTİMİZASYON: Blob verisini doğrudan Base64'e dönüştürüp RTDB'ye basıyoruz!
           const reader = new FileReader();
           reader.readAsDataURL(processedBlob);
           reader.onloadend = () => {
