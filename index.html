@@ -147,7 +147,6 @@
         .effect-opt { background: #2a2a2a; border: 1px solid #444; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: 0.2s; }
         .effect-opt.selected { background: var(--primary); color: black; font-weight: bold; border-color: var(--primary); }
 
-        /* LAZ ZİYA ÖZEL VİDEO SİSTEMİ CSS */
         .special-video-btn {
             position: absolute;
             top: 15px;
@@ -217,7 +216,6 @@
             background: black;
         }
 
-        /* YENİ RADYO PLAYLIST SİSTEMİ CSS */
         .playlist-container {
             margin-top: 15px;
             background: #151515;
@@ -327,8 +325,7 @@
             
             <div class="playlist-container">
                 <div class="playlist-title">🎵 Radyo Şarkı Listesi</div>
-                <div id="playlistList">
-                    </div>
+                <div id="playlistList"></div>
             </div>
 
             <button id="logoutBtn" class="btn btn-danger" style="margin-top: 20px;">Çıkış Yap</button>
@@ -395,7 +392,6 @@
       logContent.scrollTop = logContent.scrollHeight;
   }
 
-  // LAZ ZİYA POPUP MANTIĞI VE TETİKLEYİCİLERİ
   const videoOverlay = document.getElementById("videoPopupOverlay");
   const closeVideoBtn = document.getElementById("closeVideoPopup");
   const openVideoBtn = document.getElementById("openVideoBtn");
@@ -404,7 +400,15 @@
   window.addEventListener("DOMContentLoaded", () => {
       videoOverlay.classList.add("active");
       logToScreen("Giriş videosu aktif edildi.");
-      renderPlaylist(); // Şarkı listesini oluştur
+      renderPlaylist();
+      
+      if ("Notification" in window) {
+          if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+              Notification.requestPermission().then(permission => {
+                  if (permission === "granted") logToScreen("Anlık bildirim izni alındı!");
+              });
+          }
+      }
   });
 
   closeVideoBtn.addEventListener("click", () => {
@@ -418,10 +422,10 @@
       specialVideoPlayer.play().catch(e => {});
   });
 
-  // ŞARKI LİSTESİ VERİSİ VE SEÇİM FONKSİYONLARI
+  // GÜNCEL MÜZİK LİSTESİ VERİLERİ (İSİMLER DEĞİŞTİ)
   const songs = [
-      { id: 1, title: "📻 dilara bass boosted", src: "sarki1.mp3" },
-      { id: 2, title: "🎵 sagopa kajmer baytar", src: "sarki2.mp3" } // Yeni eklenen şarkı
+      { id: 1, title: "📻 Cendere (Dilara Bass Boosted)", src: "sarki1.mp3" },
+      { id: 2, title: "🎵 Sagopa Kajmer - Baytar", src: "sarki2.mp3" }
   ];
   let currentSongId = 1;
 
@@ -440,14 +444,22 @@
   function changeSong(songId) {
       const selectedSong = songs.find(s => s.id === songId);
       if (!selectedSong) return;
-      
       currentSongId = songId;
       const player = document.getElementById("radyoPlayer");
       player.src = selectedSong.src;
       player.play().catch(e => logToScreen("Oynatma izni bekliyor...", false));
-      
       logToScreen(`Şarkı değiştirildi: ${selectedSong.title}`);
-      renderPlaylist(); // Görsel seçimi yenilemek için listeyi tekrar çiz
+      renderPlaylist();
+  }
+
+  function triggerLocalNotification(title, body) {
+      if (document.visibilityState === "visible") return;
+      if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(title, {
+              body: body,
+              icon: "logo.png"
+          });
+      }
   }
 
   let consoleMinimized = false;
@@ -496,6 +508,9 @@
   let unsubscribeChat = null;
   let unsubscribeTyping = null;
   let typingTimeout = null;
+
+  let isFirstLoadPrivate = true;
+  let isFirstLoadGroup = true;
 
   let mediaRecorder = null;
   let audioChunks = [];
@@ -673,6 +688,7 @@
               overlay.style.display = "flex"; audio.currentTime = 0;
               audio.play().catch(e => {});
               audio.onended = () => { overlay.style.display = "none"; };
+              triggerLocalNotification("👹 TROLLEDİN!", "Biri sana jumpscare fırlattı, çabuk uygulamaya dön!");
           }
       });
   }
@@ -683,6 +699,7 @@
       document.getElementById("activeChatPartner").innerText = "💬 @" + friendName;
       document.getElementById("typingIndicator").innerText = "";
       document.getElementById("voicePanel").style.display = "none";
+      isFirstLoadPrivate = true;
       
       const chatRoomId = auth.currentUser.uid < friendUid ? `${auth.currentUser.uid}_${friendUid}` : `${friendUid}_${auth.currentUser.uid}`;
       
@@ -691,6 +708,15 @@
 
       unsubscribeChat = onValue(ref(db, `chats/${chatRoomId}/messages`), (snapshot) => {
           renderMessages(snapshot);
+          if (!isFirstLoadPrivate && snapshot.exists()) {
+              const msgs = Object.values(snapshot.val());
+              const lastMsg = msgs[msgs.length - 1];
+              if (lastMsg.sender !== auth.currentUser.uid) {
+                  const textContent = lastMsg.type === 'voice' ? '🎙️ Sesli Mesaj gönderdi.' : lastMsg.text;
+                  triggerLocalNotification(`💬 @${friendName}`, textContent);
+              }
+          }
+          isFirstLoadPrivate = false;
       });
 
       unsubscribeTyping = onValue(ref(db, `chats/${chatRoomId}/typing`), (snapshot) => {
@@ -709,12 +735,22 @@
       document.getElementById("activeChatPartner").innerText = "👥 " + groupName;
       document.getElementById("typingIndicator").innerText = "";
       document.getElementById("voicePanel").style.display = "none";
+      isFirstLoadGroup = true;
 
       if (typeof unsubscribeChat === 'function') unsubscribeChat();
       if (typeof unsubscribeTyping === 'function') unsubscribeTyping();
 
       unsubscribeChat = onValue(ref(db, `groupChats/${groupId}/messages`), (snapshot) => {
           renderMessages(snapshot, true);
+          if (!isFirstLoadGroup && snapshot.exists()) {
+              const msgs = Object.values(snapshot.val());
+              const lastMsg = msgs[msgs.length - 1];
+              if (lastMsg.sender !== auth.currentUser.uid) {
+                  const textContent = lastMsg.type === 'voice' ? '🎙️ Sesli Mesaj gönderdi.' : lastMsg.text;
+                  triggerLocalNotification(`👥 ${groupName}`, `@${lastMsg.senderName}: ${textContent}`);
+              }
+          }
+          isFirstLoadGroup = false;
       });
 
       unsubscribeTyping = onValue(ref(db, `groupChats/${groupId}/typing`), (snapshot) => {
@@ -733,9 +769,7 @@
           Object.values(snapshot.val()).forEach(m => {
               const d = document.createElement("div"); 
               d.className = `msg ${m.sender === auth.currentUser.uid ? 'sent' : 'received'}`;
-              
               let nameHeader = (isGroup && m.sender !== auth.currentUser.uid) ? `@${m.senderName}: ` : "";
-              
               if(m.type === "voice") {
                   d.innerHTML = `<div style="display:flex; flex-direction:column; width:100%; gap:2px;">
                                     <span style="font-size:11px; font-weight:bold; color:var(--text-secondary);">${nameHeader}🎙️ Sesli Mesaj</span>
@@ -819,12 +853,10 @@
 
       try {
           let processedBlob = latestAudioBlob;
-
           if (selectedEffect !== 'normal') {
               const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
               const arrayBuffer = await latestAudioBlob.arrayBuffer();
               const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-              
               const dest = audioCtx.createMediaStreamDestination();
               const rec = new MediaRecorder(dest.stream);
               const chunks = [];
@@ -835,17 +867,13 @@
                       resolve(new Blob(chunks, { type: 'audio/ogg; codecs=opus' }));
                       audioCtx.close();
                   };
-
                   const source = audioCtx.createBufferSource();
                   source.buffer = audioBuffer;
-
                   if (selectedEffect === 'high') source.playbackRate.value = 1.45;
                   if (selectedEffect === 'low') source.playbackRate.value = 0.72;
-
                   source.connect(dest);
                   rec.start();
                   source.start(0);
-                  
                   source.onended = () => rec.stop();
                   setTimeout(() => { if(rec.state === "recording") rec.stop(); }, (audioBuffer.duration * 1000) + 300);
               });
@@ -857,13 +885,7 @@
               const base64AudioUrl = reader.result;
               const chatRoomId = auth.currentUser.uid < activeChatId ? `${auth.currentUser.uid}_${activeChatId}` : `${activeChatId}_${auth.currentUser.uid}`;
               const path = activeChatType === 'private' ? `chats/${chatRoomId}/messages` : `groupChats/${activeChatId}/messages`;
-              
-              const voiceMsgObj = {
-                  sender: auth.currentUser.uid,
-                  type: "voice",
-                  url: base64AudioUrl,
-                  timestamp: Date.now()
-              };
+              const voiceMsgObj = { sender: auth.currentUser.uid, type: "voice", url: base64AudioUrl, timestamp: Date.now() };
               if (activeChatType === 'group') voiceMsgObj.senderName = currentUserData.username;
 
               push(ref(db, path), voiceMsgObj).then(() => {
@@ -871,7 +893,6 @@
                   latestAudioBlob = null;
               }).catch(e => logToScreen("Gönderim hatası: " + e.message, true));
           };
-
       } catch (err) {
           logToScreen("Ses işleme moturu hatası: " + err.message, true);
       }
