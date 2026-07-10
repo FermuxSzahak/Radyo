@@ -216,6 +216,43 @@
             border: 1px solid #333;
             background: black;
         }
+
+        /* YENİ RADYO PLAYLIST SİSTEMİ CSS */
+        .playlist-container {
+            margin-top: 15px;
+            background: #151515;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: left;
+        }
+        .playlist-title {
+            font-size: 13px;
+            color: var(--primary);
+            font-weight: bold;
+            margin: 0 0 8px 0;
+            border-bottom: 1px solid #222;
+            padding-bottom: 4px;
+        }
+        .playlist-item {
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.2s;
+            margin-bottom: 4px;
+        }
+        .playlist-item:last-child { margin-bottom: 0; }
+        .playlist-item:hover { background: #222; }
+        .playlist-item.active {
+            background: rgba(0, 173, 181, 0.15);
+            border-left: 3px solid var(--primary);
+            color: var(--primary);
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -284,10 +321,17 @@
         </div>
 
         <div id="tab-radyo" class="tab-content active">
-            <div style="text-align: center; padding: 20px 0;">
-                <audio id="radyoPlayer" controls><source src="sarki1.mp3" type="audio/mpeg"></audio>
+            <div style="text-align: center; padding: 15px 0 5px 0;">
+                <audio id="radyoPlayer" controls src="sarki1.mp3"></audio>
             </div>
-            <button id="logoutBtn" class="btn btn-danger">Çıkış Yap</button>
+            
+            <div class="playlist-container">
+                <div class="playlist-title">🎵 Radyo Şarkı Listesi</div>
+                <div id="playlistList">
+                    </div>
+            </div>
+
+            <button id="logoutBtn" class="btn btn-danger" style="margin-top: 20px;">Çıkış Yap</button>
         </div>
 
         <div id="tab-sosyal" class="tab-content">
@@ -357,24 +401,54 @@
   const openVideoBtn = document.getElementById("openVideoBtn");
   const specialVideoPlayer = document.getElementById("specialVideoPlayer");
 
-  // Sayfa yüklendiğinde anında otomatik açılış
   window.addEventListener("DOMContentLoaded", () => {
       videoOverlay.classList.add("active");
       logToScreen("Giriş videosu aktif edildi.");
+      renderPlaylist(); // Şarkı listesini oluştur
   });
 
-  // Çarpı (X) butonuna basınca kapat ve videoyu durdur
   closeVideoBtn.addEventListener("click", () => {
       videoOverlay.classList.remove("active");
-      specialVideoPlayer.pause(); // Kapanınca video ses yapmasın diye durduruyoruz
+      specialVideoPlayer.pause();
   });
 
-  // Sağ üst köşedeki butona basınca yeniden aç
   openVideoBtn.addEventListener("click", () => {
       videoOverlay.classList.add("active");
-      specialVideoPlayer.currentTime = 0; // Başa sarıp açıyoruz
+      specialVideoPlayer.currentTime = 0;
       specialVideoPlayer.play().catch(e => {});
   });
+
+  // ŞARKI LİSTESİ VERİSİ VE SEÇİM FONKSİYONLARI
+  const songs = [
+      { id: 1, title: "📻 Kurtlar Vadisi Cendere", src: "sarki1.mp3" },
+      { id: 2, title: "🎵 Laz Ziya Özel Remix", src: "sarki2.mp3" } // Yeni eklenen şarkı
+  ];
+  let currentSongId = 1;
+
+  function renderPlaylist() {
+      const playlistDiv = document.getElementById("playlistList");
+      playlistDiv.innerHTML = "";
+      songs.forEach(song => {
+          const item = document.createElement("div");
+          item.className = `playlist-item ${song.id === currentSongId ? 'active' : ''}`;
+          item.innerHTML = `<span>${song.title}</span>`;
+          item.addEventListener("click", () => changeSong(song.id));
+          playlistDiv.appendChild(item);
+      });
+  }
+
+  function changeSong(songId) {
+      const selectedSong = songs.find(s => s.id === songId);
+      if (!selectedSong) return;
+      
+      currentSongId = songId;
+      const player = document.getElementById("radyoPlayer");
+      player.src = selectedSong.src;
+      player.play().catch(e => logToScreen("Oynatma izni bekliyor...", false));
+      
+      logToScreen(`Şarkı değiştirildi: ${selectedSong.title}`);
+      renderPlaylist(); // Görsel seçimi yenilemek için listeyi tekrar çiz
+  }
 
   let consoleMinimized = false;
   document.getElementById("consoleToggleBtn").addEventListener("click", () => {
